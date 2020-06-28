@@ -114,10 +114,38 @@ int cgi(request *req)
 		goto errExit;
 	}
 	//--------------------- set environment ----------------------------
-//	env.add("SYSTEMROOT", getenv("SYSTEMROOT"));
+	{
+		const int size = 4096;
+		char tmpBuf[size];
+		if (GetWindowsDirectory(tmpBuf, size))
+		{
+			env.add("SYSTEMROOT", tmpBuf);
+		}
+		else
+		{
+			print_err("%d<%s:%d> Error getenv_s()\n", req->numChld, __func__, __LINE__);
+			retExit = -RS500;
+			goto errExit;
+		}
+	}
+
 /*
-	env.add("PATH", getenv("PATH"));
+	{
+		const int size = 4096;
+		char tmpBuf[size];
+		if (ExpandEnvironmentStringsA("PATH=%PATH%", tmpBuf, size))
+		{
+			env.add("PATH", tmpBuf);
+		}
+		else
+		{
+			print_err("%d<%s:%d> Error getenv_s()\n", req->numChld, __func__, __LINE__);
+			retExit = -RS500;
+			goto errExit;
+		}
+	}
 */
+	
 	if (req->reqMethod == M_POST)
 	{
 		if (req->req_hdrs.iReqContentLength >= 0)
@@ -167,9 +195,6 @@ int cgi(request *req)
 	env.add("DOCUMENT_ROOT", str.c_str());
 	
 	utf16_to_mbs(str, req->wDecodeUri.c_str());
-//	utf16_to_utf8(str, req->wDecodeUri);
-//	stmp = hex_dump((void*)str.c_str(), str.size());
-//print_err("<%s:%d> uri (%s)\n", __func__, __LINE__, stmp.c_str());
 	env.add("REQUEST_URI", str.c_str());
 
 	utf16_to_mbs(str, wPath.c_str());
