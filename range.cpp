@@ -73,13 +73,13 @@ int check_str_range(request *req)
 			if (*p == '-')
 			{
 				ch = *(++p);
-				if ((ch >= '0') && (ch <= '9'))// [10-50]
+				if ((ch >= '0') && (ch <= '9'))// [start-end]
 				{
 					end = strtoll(p, &p, 10);
 					if ((*p != ',') && (*p != ' ') && (*p != 0))
 						break;
 				}
-				else if ((ch == ',') || (ch == 0))// [10-]
+				else if ((ch == ',') || (ch == 0))// [start-]
 					end = size - 1;
 				else
 					break;
@@ -89,7 +89,7 @@ int check_str_range(request *req)
 		}
 		else if (ch == '-')
 		{
-			if ((*(p+1) >= '0') && (*(p+1) <= '9'))// [-50]
+			if ((*(p+1) >= '0') && (*(p+1) <= '9'))// [-end]
 			{
 				end = strtoll(p, &p, 10);
 				if ((*p != ',') && (*p != 0))
