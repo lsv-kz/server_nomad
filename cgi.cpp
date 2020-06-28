@@ -385,7 +385,7 @@ int cgi_chunk(request *req, PIPENAMED *Pipe, int maxRd)
 	ClChunked chunk(req->clientSocket, chunked);
 	//------------ read from script ------------
 	req->resp.respStatus = RS200;
-	n = ReadFromPipe(Pipe, buf, sizeof(buf), &ReadFromScript, maxRd, conf->TimeOutCGI);
+	n = ReadFromPipe(Pipe, buf, sizeof(buf) - 1, &ReadFromScript, maxRd, conf->TimeOutCGI);
 	if (n < 0)
 	{
 		print_err("%d<%s:%d> Error script_to_buf()=%d\n", req->numChld, __func__, __LINE__, ReadFromScript);
