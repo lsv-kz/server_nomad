@@ -30,8 +30,8 @@ SOCKET create_server_socket(const Config *conf)
 	WSADATA wsaData = {0};
 	int iOptLen = sizeof (int);
 
-    port = (unsigned short)atol(conf->servPort.c_str());
-    if (WSAStartup(MAKEWORD(2,2),&wsaData))
+	port = (unsigned short)atol(conf->servPort.c_str());
+	if (WSAStartup(MAKEWORD(2,2),&wsaData))
 	{
 		mprint_err("<%s:%d> Error WSAStartup(): %d\n", __func__, __LINE__, WSAGetLastError());
 		system("PAUSE");
@@ -43,9 +43,9 @@ SOCKET create_server_socket(const Config *conf)
 
 //	sin.sin_addr.s_addr = inet_addr(conf->host.c_str());
 	sin.sin_addr.s_addr = INADDR_ANY;
-    sin.sin_port = htons(port);
+        sin.sin_port = htons(port);
 
-    SOCKET sockfd = socket(AF_INET,SOCK_STREAM, IPPROTO_TCP);
+	SOCKET sockfd = socket(AF_INET,SOCK_STREAM, IPPROTO_TCP);
 	if(sockfd == INVALID_SOCKET)
 	{
 		mprint_err("<%s:%d> Error socket(): %d\n", __func__, __LINE__, WSAGetLastError());
@@ -63,28 +63,28 @@ SOCKET create_server_socket(const Config *conf)
 	}
 
 	if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&sock_opt, sizeof(sock_opt)) == SOCKET_ERROR)
-    {
+	{
 		mprint_err("<%s:%d> Error setsockopt(): %d\n", __func__, __LINE__, WSAGetLastError());
 		WSACleanup();
 		system("PAUSE");
 		return INVALID_SOCKET;
-    }
+	}
 
-    u_long iMode = 1;
+	u_long iMode = 1;
     // Set the socket I/O mode: In this case FIONBIO
 	// enables or disables the blocking mode for the 
 	// socket based on the numerical value of iMode.
 	// If iMode = 0, blocking is enabled; 
 	// If iMode != 0, non-blocking mode is enabled.
-    if (ioctlsocket(sockfd, FIONBIO, &iMode) == SOCKET_ERROR)
-    {
+	if (ioctlsocket(sockfd, FIONBIO, &iMode) == SOCKET_ERROR)
+	{
 		mprint_err("<%s:%d> Error ioctlsocket(): %d\n", __func__, __LINE__, WSAGetLastError());
 		WSACleanup();
 		system("PAUSE");
 		return INVALID_SOCKET;
 	}
 
-    sockbuf = conf->SOCK_BUFSIZE;
+	sockbuf = conf->SOCK_BUFSIZE;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char*)&sockbuf, sizeof(sockbuf)) == SOCKET_ERROR)
 	{
 		mprint_err("<%s:%d> Error setsockopt(): %d\n", __func__, __LINE__, WSAGetLastError());
