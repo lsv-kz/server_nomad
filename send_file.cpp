@@ -40,7 +40,7 @@ int send_entity(request *req, char *rd_buf, int size_buf)
 	return ret;
 }
 //======================================================================
-int shift_conv()
+int shift_queue()
 {
 	int i = 0, i_empty = 0;
 	time_t t = time(NULL);
@@ -139,7 +139,7 @@ void send_files(RequestManager *ReqMan)
 
 			if (close_thr)
 				break;
-			shift_conv();
+			shift_queue();
 			num_select = size_queue;
 		}
 		cond_shift.notify_one();
