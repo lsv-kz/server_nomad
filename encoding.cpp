@@ -141,64 +141,64 @@ int utf8_to_utf16(char *u8, wstring& ws)
 		wchar_t uni;
 		
 		if (ch <= 0x7F)
-        {
-            uni = ch;
-            num = 0;
-        }
-        else if (ch <= 0xBF)
-        {
-            ws = L"not a UTF-8 string\n";
-            return 1;
-        }
+		{
+			uni = ch;
+			num = 0;
+		}
+		else if (ch <= 0xBF)
+		{
+			ws = L"not a UTF-8 string\n";
+			return 1;
+		}
 		else if (ch <= 0xDF)
-        {
-            uni = ch & 0x1F;
-            num = 1;
-        }
-        else if (ch <= 0xEF)
-        {
-            uni = ch & 0x0F;
-            num = 2;
-        }
-        else if (ch <= 0xF7)
-        {
-            uni = ch & 0x07;
-            num = 3;
-        }
-        else
-        {
-            ws = L"not a UTF-8 string\n";
-            return 2;
-        }
+		{
+			uni = ch & 0x1F;
+			num = 1;
+		}
+		else if (ch <= 0xEF)
+		{
+			uni = ch & 0x0F;
+			num = 2;
+		}
+		else if (ch <= 0xF7)
+		{
+			uni = ch & 0x07;
+			num = 3;
+		}
+		else
+		{
+			ws = L"not a UTF-8 string\n";
+			return 2;
+		}
         
-        for (size_t j = 0; j < num; ++j)
-        {
-            if (i == len)
-            {
-                ws = L"not a UTF-8 string\n";
+		for (size_t j = 0; j < num; ++j)
+		{
+			if (i == len)
+			{
+				ws = L"not a UTF-8 string\n";
 				return 3;
 			}
 			
-            unsigned char ch = u8[i++];
-            if (ch < 0x80 || ch > 0xBF)
-            {
+			unsigned char ch = u8[i++];
+			if (ch < 0x80 || ch > 0xBF)
+			{
 				ws = L"not a UTF-8 string\n";
 				return 4;
 			}
                 
-            uni <<= 6;
-            uni += ch & 0x3F;
-        }
-        if (uni >= 0xD800 && uni <= 0xDFFF)
-        {
+			uni <<= 6;
+			uni += ch & 0x3F;
+		}
+		if (uni >= 0xD800 && uni <= 0xDFFF)
+		{
 			ws = L"not a UTF-8 string\n";
-            return 5;
+			return 5;
 		}
         
-        if (uni > 0x10FFFF)
-        {
+		if (uni > 0x10FFFF)
+		{
 			ws = L"not a UTF-8 string\n";
-            return 6;
+			return 6;
 		}
 
 		ws += uni;
@@ -219,65 +219,65 @@ int utf8_to_utf16(string& u8, wstring& ws)
 		wchar_t uni;
 		
 		if (ch <= 0x7F)
-        {
-            uni = ch;
-            num = 0;
-        }
-        else if (ch <= 0xBF)
-        {
-            ws = L"not a UTF-8 string\n";
-            return 1;
-        }
+        	{
+            		uni = ch;
+           		num = 0;
+        	}
+        	else if (ch <= 0xBF)
+        	{
+            		ws = L"not a UTF-8 string\n";
+            		return 1;
+        	}
 		else if (ch <= 0xDF)
-        {
-            uni = ch & 0x1F;
-            num = 1;
-        }
-        else if (ch <= 0xEF)
-        {
-            uni = ch & 0x0F;
-            num = 2;
-        }
-        else if (ch <= 0xF7)
-        {
-            uni = ch & 0x07;
-            num = 3;
-        }
-        else
-        {
-            ws = L"not a UTF-8 string\n";
-            return 2;
-        }
+        	{
+            		uni = ch & 0x1F;
+            		num = 1;
+        	}
+        	else if (ch <= 0xEF)
+        	{
+            		uni = ch & 0x0F;
+            		num = 2;
+        	}
+        	else if (ch <= 0xF7)
+        	{
+            		uni = ch & 0x07;
+            		num = 3;
+        	}
+        	else
+        	{
+            		ws = L"not a UTF-8 string\n";
+            		return 2;
+        	}
         
-        for (size_t j = 0; j < num; ++j)
-        {
-            if (i == len)
-            {
-                ws = L"not a UTF-8 string\n";
+        	for (size_t j = 0; j < num; ++j)
+        	{
+            		if (i == len)
+            		{
+                		ws = L"not a UTF-8 string\n";
 				return 3;
 			}
 			
-            unsigned char ch = u8[i++];
-            if (ch < 0x80 || ch > 0xBF)
-            {
+			unsigned char ch = u8[i++];
+			if (ch < 0x80 || ch > 0xBF)
+			{
 				ws = L"not a UTF-8 string\n";
 				return 4;
 			}
                 
-            uni <<= 6;
-            uni += ch & 0x3F;
-        }
+			uni <<= 6;
+			uni += ch & 0x3F;
+        	}
         
-        if (uni >= 0xD800 && uni <= 0xDFFF)
-        {
+        	if (uni >= 0xD800 && uni <= 0xDFFF)
+        	{
 			ws = L"not a UTF-8 string\n";
-            return 5;
+			return 5;
 		}
         
-        if (uni > 0x10FFFF)
-        {
+        	if (uni > 0x10FFFF)
+        	{
 			ws = L"not a UTF-8 string\n";
-            return 6;
+			return 6;
 		}
 
 		ws += uni;
@@ -293,10 +293,10 @@ int decode(char *s_in, size_t len_in, char *s_out, int len)
 	char hex[] = "ABCDEFabcdef0123456789";
 	unsigned char c;
 
-    int cnt = 0, i;
+	int cnt = 0, i;
 
 	while(len >= 1)
-    {
+	{
 		c = *(s_in++);
 		
 		len--;
@@ -313,7 +313,7 @@ int decode(char *s_in, size_t len_in, char *s_out, int len)
 			if(strspn(tmp, hex) != 2)
 			{
 				if(s_out)
-					*p = 0;
+				*p = 0;
 				return 0;
 			}
 			sscanf_s(tmp, "%x", &i);
@@ -334,8 +334,8 @@ int decode(char *s_in, size_t len_in, char *s_out, int len)
 		
 		--len_in;
 		if (!len_in) break;
-    }
-    if(s_out)
+	}
+	if(s_out)
 		*p = 0;
-    return cnt;
+	return cnt;
 }
