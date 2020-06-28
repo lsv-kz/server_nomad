@@ -142,8 +142,8 @@ int main_proc(const char *name_proc)
 		 << "\n   TimeOut = " << conf->TimeOut
 		 << "\n   TimeoutThreadCond = " << conf->TimeoutThreadCond
 		 << "\n\n   php: " << conf->usePHP;
-   wcerr << L"\n   path_php: " << conf->wPathPHP
-         << L"\n   pyPath: " << conf->wPyPath
+	wcerr << L"\n   path_php: " << conf->wPathPHP
+		 << L"\n   pyPath: " << conf->wPyPath
 		 << L"\n   PerlPath: " << conf->wPerlPath
 		 << L"\n   root_dir = " << conf->wRootDir
 		 << L"\n   cgi_dir = " << conf->wCgiDir
@@ -284,25 +284,25 @@ int main_proc(const char *name_proc)
 			DWORD wr;
 			bool res = WriteFile(hPipeParent[num_chld], &ch, 1, &wr, NULL);
 			if (!res)
-            {
+            		{
 				int err = GetLastError();
-                mprint_err("<%s:%d> Error WriteFile(): %d\n", __func__, __LINE__, err);
-                break;
-            }
+                		mprint_err("<%s:%d> Error WriteFile(): %d\n", __func__, __LINE__, err);
+                		break;
+            		}
             
-            res = ReadFile(hPipeParent[num_chld], &ch, sizeof(ch), &wr, NULL);
-            if (!res || wr == 0)
-            {
+            		res = ReadFile(hPipeParent[num_chld], &ch, sizeof(ch), &wr, NULL);
+            		if (!res || wr == 0)
+            		{
 				int err = GetLastError();
-                mprint_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
-                break;
-            }
+                		mprint_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
+                		break;
+            		}
             
-            if (ch == num_chld)
-            {
-    mtx_balancing.lock();
+            		if (ch == num_chld)
+            		{
+    		mtx_balancing.lock();
 				++numConn[num_chld];
-	mtx_balancing.unlock();
+		mtx_balancing.unlock();
 			}
 		}
 	}
@@ -332,7 +332,7 @@ int main_proc(const char *name_proc)
 	
 	CloseHandle(close_in);
 	ReadPipe.join();
-mprint_err("<%s:%d> Close main_proc\n", __func__, __LINE__);
+
 	return 0;
 }
 //======================================================================
