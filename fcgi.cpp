@@ -238,7 +238,6 @@ void fcgi_set_header(char *header, int type, int id, size_t len, int padding_len
 	
 	*p++ = padding_len;                         // Padding Length
 	*p = 0;                                   // Reserved
-//print_err("<%s:%d> %s\n", __func__, __LINE__, hex_dump(header, 8).c_str());
 }
 //======================================================================
 int tail_to_fcgi(SOCKET fcgi_sock, char *tail, int lenTail)
