@@ -380,7 +380,7 @@ const char *status_resp(int st)
 		case RS505:
 			return "505 HTTP Version not supported";
 		default:
-			return "500 Internal Server Error";
+			return "";
 	}
 	return "";
 }
