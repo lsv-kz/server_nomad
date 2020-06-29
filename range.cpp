@@ -119,9 +119,9 @@ int check_str_range(request *req)
 		p++;
 	}
 
-	int len = ss.str().size();
+	int len = (int)ss.str().size();
 	if (len < (int)sizeof(req->sRange))
-		memcpy(req->sRange, ss.str().c_str(), len+1);
+		memcpy(req->sRange, ss.str().c_str(), len + (int)1);
 	else
 		numPart = 0;
 	

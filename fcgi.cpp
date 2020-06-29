@@ -28,8 +28,7 @@ typedef struct {
 
 const int requestId = 1;
 //======================================================================
-//const int FCGI_SIZE_PAR_BUF = 8178;
-const int FCGI_SIZE_PAR_BUF = 2032;
+const int FCGI_SIZE_PAR_BUF = 4096 - 16;
 const int FCGI_SIZE_HEADER = 8;
 
 class FCGI_params
@@ -53,7 +52,7 @@ class FCGI_params
 		*p++ = (unsigned char) ((len >> 8) & 0xff);
 		*p++ = (unsigned char) ((len) & 0xff);
 	
-		*p++ = padding;
+		*p++ = (unsigned char)padding;
 		*p = 0;
 		
 		memset(buf + i, 0, padding);
@@ -77,10 +76,8 @@ class FCGI_params
 		return n;
 	}
 	
-	FCGI_params() {}
 public:
 	FCGI_params(SOCKET s) { sock = s; }
-	
 	template <typename Arg>
 	int add(const char *name, Arg val)
 	{
@@ -236,7 +233,7 @@ void fcgi_set_header(char *header, int type, int id, size_t len, int padding_len
 	*p++ = (unsigned char) ((len >> 8) & 0xff); // Content Length
 	*p++ = (unsigned char) ((len) & 0xff);      // Content Length
 	
-	*p++ = padding_len;                         // Padding Length
+	*p++ = (unsigned char)padding_len;                         // Padding Length
 	*p = 0;                                   // Reserved
 //print_err("<%s:%d> %s\n", __func__, __LINE__, hex_dump(header, 8).c_str());
 }

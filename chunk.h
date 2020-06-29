@@ -10,7 +10,7 @@ class ClChunked
 	int i = MAX_LEN_SIZE_CHUNK, mode, allSend = 0;
 	SOCKET sock;
 	char buf[CHUNK_SIZE_BUF + MAX_LEN_SIZE_CHUNK + 10];
-	ClChunked() {};
+	
 	//------------------------------------------------------------------
 	template <typename Arg>
 	int add(Arg arg)
@@ -66,7 +66,8 @@ class ClChunked
 			allSend += ret;
 		return ret;
 	}
-public://---------------------------------------------------------------
+public:
+	//---------------------------------------------------------------
 	ClChunked(SOCKET s, int m){sock = s; mode = m;}
 	//------------------------------------------------------------------
 	void add_str(int& n){}

@@ -78,7 +78,7 @@ int cgi(request *req)
 	
 	char pipeName[40] = "\\\\.\\pipe\\cgi";
 	const DWORD PIPE_BUFSIZE = 1024;
-	
+
 	SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
 	saAttr.bInheritHandle = TRUE;
@@ -104,7 +104,7 @@ int cgi(request *req)
 		wPath += conf->wRootDir; 
 		wPath += req->wScriptName;
 	}
-	
+
 	if(_wstat(wPath.c_str(), &st) == -1)
 	{
 		utf16_to_mbs(str, wPath.c_str());
@@ -114,9 +114,35 @@ int cgi(request *req)
 		goto errExit;
 	}
 	//--------------------- set environment ----------------------------
-//	env.add("SYSTEMROOT", getenv("SYSTEMROOT"));
+	{
+		const int size = 4096;
+		char tmpBuf[size];
+		if (GetWindowsDirectory(tmpBuf, size))
+		{
+			env.add("SYSTEMROOT", tmpBuf);
+		}
+		else
+		{
+			print_err("%d<%s:%d> Error getenv_s()\n", req->numChld, __func__, __LINE__);
+			retExit = -RS500;
+			goto errExit;
+		}
+	}
 /*
-	env.add("PATH", getenv("PATH"));
+	{
+		const int size = 4096;
+		char tmpBuf[size];
+		if (ExpandEnvironmentStringsA("PATH=%PATH%", tmpBuf, size))
+		{
+			env.add("PATH", tmpBuf);
+		}
+		else
+		{
+			print_err("%d<%s:%d> Error getenv_s()\n", req->numChld, __func__, __LINE__);
+			retExit = -RS500;
+			goto errExit;
+		}
+	}
 */
 	if (req->reqMethod == M_POST)
 	{
@@ -167,9 +193,6 @@ int cgi(request *req)
 	env.add("DOCUMENT_ROOT", str.c_str());
 	
 	utf16_to_mbs(str, req->wDecodeUri.c_str());
-//	utf16_to_utf8(str, req->wDecodeUri);
-//	stmp = hex_dump((void*)str.c_str(), str.size());
-//print_err("<%s:%d> uri (%s)\n", __func__, __LINE__, stmp.c_str());
 	env.add("REQUEST_URI", str.c_str());
 
 	utf16_to_mbs(str, wPath.c_str());
@@ -233,6 +256,7 @@ int cgi(request *req)
 	}
 	Pipe.oOverlap.hEvent = Pipe.hEvent;
 	//------------------------------------------------------------------
+
 	len = strlen(pipeName);
 	snprintf(pipeName + len, sizeof(pipeName) - len, "%d%d", req->numChld, req->numConn);
 	Pipe.parentPipe = CreateNamedPipeA( 
@@ -289,7 +313,7 @@ int cgi(request *req)
 		
 		goto errExit;
 	}
-	
+
 	ConnectNamedPipe(Pipe.parentPipe, &Pipe.oOverlap);
 
 	PROCESS_INFORMATION pi;
@@ -366,7 +390,7 @@ int cgi(request *req)
 	}
 
 	retExit = cgi_chunk(req, &Pipe, PIPE_BUFSIZE);
-	
+
 	DisconnectNamedPipe(Pipe.parentPipe); 
 	CloseHandle(Pipe.parentPipe);
 	CloseHandle(Pipe.hEvent);
@@ -378,14 +402,14 @@ errExit:
 //======================================================================
 int cgi_chunk(request *req, PIPENAMED *Pipe, int maxRd)
 {
-	int n, ReadFromScript;
+	int n, ReadFromScript = 0;
 	char buf[512], *ptr_buf;
 	bool broken_pipe = false;
 	int chunked = ((req->httpProt == HTTP11) && req->connKeepAlive) ? 1 : 0;
 	ClChunked chunk(req->clientSocket, chunked);
 	//------------ read from script ------------
 	req->resp.respStatus = RS200;
-	n = ReadFromPipe(Pipe, buf, sizeof(buf), &ReadFromScript, maxRd, conf->TimeOutCGI);
+	n = ReadFromPipe(Pipe, buf, sizeof(buf) - 1, &ReadFromScript, maxRd, conf->TimeOutCGI);
 	if (n < 0)
 	{
 		print_err("%d<%s:%d> Error script_to_buf()=%d\n", req->numChld, __func__, __LINE__, ReadFromScript);
@@ -487,7 +511,7 @@ int cgi_chunk(request *req, PIPENAMED *Pipe, int maxRd)
 			return -1;
 		}
 	}
-	
+
 	if (!broken_pipe)
 	{
 		ReadFromScript = chunk.cgi_to_client(Pipe, maxRd);
@@ -497,7 +521,7 @@ int cgi_chunk(request *req, PIPENAMED *Pipe, int maxRd)
 			return -1;
 		}
 	}
-	
+
 	ReadFromScript = chunk.end();
 	req->resp.send_bytes = chunk.all();
 	if (ReadFromScript < 0)

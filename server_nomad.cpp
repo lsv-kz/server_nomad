@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 			if (hPipeChld == INVALID_HANDLE_VALUE)
 			{
 				print_err("<%d> Error CreateFile, GLE=%lu; [%s]\n", __LINE__, GetLastError(), pipeName);
-				getchar();
+				cin.get();
 				exit(1);
 			}
 			
@@ -93,8 +93,7 @@ int main(int argc, char *argv[])
 	return 0;
 }
 //======================================================================
-void get_time(char *s, int size);
-void create_logfiles(const wchar_t *log_dir, const char * name, HANDLE *h, HANDLE *hErr);
+void create_logfiles(const wchar_t *log_dir, HANDLE *h, HANDLE *hErr);
 void read_from_pipe(HANDLE close_in);
 void mprint_err(const char *format, ...);
 
@@ -106,7 +105,7 @@ int main_proc(const char *name_proc)
 	DWORD pid = GetCurrentProcessId();
 	HANDLE hPipeParent[6] = {NULL};
 	HANDLE hLog, hLogErr;
-	create_logfiles(conf->wLogDir.c_str(), conf->ServerSoftware.c_str(), &hLog, &hLogErr);
+	create_logfiles(conf->wLogDir.c_str(), &hLog, &hLogErr);
 	
 	size_t len = strlen(pipeName);
 	snprintf(pipeName + len, sizeof(pipeName) - len, "%lu-", pid);
@@ -190,14 +189,14 @@ int main_proc(const char *name_proc)
 		if (hPipeParent[numChld] == INVALID_HANDLE_VALUE) 
 		{
 			printf("<%d> CreateNamedPipe failed, GLE=%lu\n", __LINE__, GetLastError()); 
-			getchar();
+			cin.get();
 			return -1;
 		}
 	
 		if (!SetHandleInformation(hPipeParent[numChld], HANDLE_FLAG_INHERIT, 0))
 		{
 			printf("<%d> Error SetHandleInformation, GLE=%lu\n", __LINE__, GetLastError());
-			getchar();
+			cin.get();
 			exit(1);
 		}
 		

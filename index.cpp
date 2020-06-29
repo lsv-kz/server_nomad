@@ -100,7 +100,7 @@ int index_chunk(request* req, vector <string> & vecDirs, vector <struct stFile> 
 	int dirs = vecDirs.size(), files = vecFiles.size();
 	int chunked = ((req->httpProt == HTTP11) && req->connKeepAlive) ? 1 : 0;
 	ClChunked chunk_buf(req->clientSocket, chunked);
-//print_err("<%s:%d> ---------------------\n", __func__, __LINE__);
+
 	req->resp.respStatus = RS200;
 	if (chunked)
 	{
@@ -249,4 +249,4 @@ int index_chunk(request* req, vector <string> & vecDirs, vector <struct stFile> 
 	
 	return 0;
 }
-// /%F4%FB%E2%E0/  фыва
+

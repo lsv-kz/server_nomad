@@ -2,10 +2,9 @@
 
 static HANDLE hLog, hLogErr;
 //======================================================================
-void create_logfiles(const wchar_t *log_dir, const char * name, HANDLE *h, HANDLE *hErr)
+void create_logfiles(const wchar_t *log_dir, HANDLE *h, HANDLE *hErr)
 {
 	wstringstream ss;
-//	ss << log_dir << L"/" << name << L".log";
 	ss << log_dir << L"/" << "access.log";
 	
 	SECURITY_ATTRIBUTES saAttr;
@@ -36,7 +35,6 @@ void create_logfiles(const wchar_t *log_dir, const char * name, HANDLE *h, HANDL
 	ss.str(L"");
 	ss.clear();
 	
-//	ss << log_dir << L"/" << name << L"-err.log";
 	ss << log_dir << L"/" << "error.log";
 	hLogErr = CreateFileW(
 				ss.str().c_str(), 

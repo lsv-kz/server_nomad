@@ -266,9 +266,8 @@ private:
 
 	unsigned long all_thr;
 	request **quReq;
-	RequestManager() {}
-public:
 	
+public:
 	RequestManager(const RequestManager&) = delete;
 	RequestManager(int, HANDLE pipe_out);
 	~RequestManager();
@@ -303,7 +302,7 @@ SOCKET create_server_socket(const Config *conf);
 void get_request(RequestManager *ReqMan);
 int response(RequestManager *ReqMan, request *req);
 int options(request *req);
-int index_dir(RequestManager *ReqMan, request *req, std::wstring& path);
+int index_dir(RequestManager *ReqMan, request *req, wstring& path);
 int parse_range(request *req);
 
 int decode(char *s_in, size_t len_in, char *s_out, int len);
@@ -330,15 +329,15 @@ int clean_path(char *path);
 const char *content_type(const wchar_t *path);
 int parse_startline_request(request *req, char *s, int len);
 int parse_headers(request *req, char *s, int len);
-std::string hex_dump(void *p, int n);
-void path_correct(std::wstring& path);
+string hex_dump(void *p, int n);
+void path_correct(wstring& path);
 //----------------------- multibytes -----------------------------------
-int utf16_to_mbs(std::string& s, const wchar_t *ws);
-int mbs_to_utf16(std::wstring& ws, const char *u8);
-int utf16_to_utf8(std::string& s, std::wstring& ws);
-int utf16_to_utf8(std::string& s, const wchar_t *ws);
+int utf16_to_mbs(string& s, const wchar_t *ws);
+int mbs_to_utf16(wstring& ws, const char *u8);
+int utf16_to_utf8(string& s, std::wstring& ws);
+int utf16_to_utf8(string& s, const wchar_t *ws);
 int utf8_to_utf16(char *u8, std::wstring& ws);
-int utf8_to_utf16(std::string& u8, std::wstring& ws);
+int utf8_to_utf16(string& u8, std::wstring& ws);
 //-------------------- send_resp ---------------------------------------
 void send_message(request *req, const char *msg);
 int create_multipart_head(char *buf, request *req, struct Range *ranges, int len_buf);
