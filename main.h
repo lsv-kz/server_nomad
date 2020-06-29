@@ -111,7 +111,7 @@ struct Config
 	std::wstring wPyPath = L"";
 
 	std::string usePHP = "n";
-	std::wstring wPathPHP = L""; //"/usr/bin/php-cgi";
+	std::wstring wPathPHP = L"";
 	
 	long int ClientMaxBodySize = 1000000;
 
