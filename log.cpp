@@ -8,7 +8,7 @@ void create_logfiles(const wchar_t *log_dir, HANDLE *h, HANDLE *hErr)
 	ss << log_dir << L"/" << "access.log";
 	
 	SECURITY_ATTRIBUTES saAttr;
-    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+	saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
 	saAttr.bInheritHandle = TRUE;
 	saAttr.lpSecurityDescriptor = NULL; 
 	
@@ -70,7 +70,7 @@ void mprint_err(const char *format, ...)
 
 	DWORD wrr;
 	BOOL res = WriteFile(hLogErr, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
-    if (!res)
+	if (!res)
 	{
 		DWORD err = GetLastError();
 		printf("<%s:%d>  Error WriteFile(): %lu\n", __func__, __LINE__, err);
@@ -118,7 +118,7 @@ void print_err(const char *format, ...)
 lock_guard<mutex> l(mtxLog);
 	DWORD wrr;
 	BOOL res = WriteFile(hChildLogErr, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
-    if (!res)
+	if (!res)
 	{
 		exit(1);
 	}

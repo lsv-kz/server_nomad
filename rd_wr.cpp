@@ -15,19 +15,19 @@ int wait_read(SOCKET sock, int timeout)
 
 	ret = select(0, &readfds, NULL, NULL, &tv);
 	if(ret == SOCKET_ERROR)
-    {
+	{
 		ErrorStrSock(__func__, __LINE__, "Error select()");
-        return -1;
-    }
-    else if(!ret)
-    {
-        return -RS408;
-    }
+        	return -1;
+	}
+	else if(!ret)
+	{
+		return -RS408;
+	}
 
-    if(FD_ISSET(sock, &readfds))
-    {
-        return 1;
-    }
+	if(FD_ISSET(sock, &readfds))
+	{
+        	return 1;
+	}
 	return -1;
 }
 //======================================================================
@@ -45,19 +45,19 @@ int wait_write(SOCKET sock, int timeout)
 
 	ret = select(0, NULL, &writefds, NULL, &tv);
 	if(ret == SOCKET_ERROR)
-    {
+	{
 		ErrorStrSock(__func__, __LINE__, "Error select()");
-        return -1;
-    }
-    else if(!ret)
-    {
-        return -timeout;
-    }
+        	return -1;
+	}
+	else if(!ret)
+	{
+        	return -timeout;
+	}
 
-    if(FD_ISSET(sock, &writefds))
-    {
-        return 1;
-    }
+	if(FD_ISSET(sock, &writefds))
+	{
+        	return 1;
+	}
 	return -1;
 }
 //======================================================================

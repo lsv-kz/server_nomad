@@ -16,7 +16,8 @@ int check_path(wstring & path)
 	if(!(_wgetcwd(cwd2, sizeof(cwd2)/sizeof(wchar_t))))
 		return -1;
 
-	if(cwd2[wcslen(cwd2)-1] == '/') cwd2[wcslen(cwd2)-1] = 0;
+	if (cwd2[wcslen(cwd2)-1] == '/')
+			cwd2[wcslen(cwd2)-1] = 0;
 	path = cwd2;
 
 	if(_wchdir(cwd))

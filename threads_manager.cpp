@@ -69,7 +69,7 @@ mtx_thr.unlock();
 //----------------------------------------------------------------------
 void RequestManager::wait_exit_thr(int n)
 {
-	unique_lock<mutex> lk(mtx_thr);
+unique_lock<mutex> lk(mtx_thr);
 	while (n == count_thr)
 	{
 		cond_exit_thr.wait(lk);
@@ -289,7 +289,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
 	
 	WSADATA WsaDat;
 	int err = WSAStartup(MAKEWORD(2,2),&WsaDat);
-    if(err != 0)
+	if (err != 0)
 	{
 		print_err("<%s:%d> WSAStartup failed with error: %d\n", __func__, __LINE__, err);
 		exit(1);
