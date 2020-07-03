@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 request *create_req(RequestManager *ReqMan);
 //======================================================================
 RequestManager::RequestManager(int n, HANDLE pipe_out)

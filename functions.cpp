@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 //======================================================================
 int PrintError(const char *f, int line, const char *s)
 {

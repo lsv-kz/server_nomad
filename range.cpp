@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 //======================================================================
 int check_range(request *req)
 {

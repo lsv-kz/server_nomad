@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 /*====================================================================*/
 int wait_read(SOCKET sock, int timeout)
 {

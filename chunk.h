@@ -1,6 +1,8 @@
 #ifndef CHUNK_H_
 #define CHUNK_H_
 #include "main.h"
+
+using namespace std;
  
 const int CHUNK_SIZE_BUF = 4096;
 const int MAX_LEN_SIZE_CHUNK = 6;
@@ -10,7 +12,6 @@ class ClChunked
 	int i = MAX_LEN_SIZE_CHUNK, mode, allSend = 0;
 	SOCKET sock;
 	char buf[CHUNK_SIZE_BUF + MAX_LEN_SIZE_CHUNK + 10];
-	
 	//------------------------------------------------------------------
 	template <typename Arg>
 	int add(Arg arg)

@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 static Config c;
 const Config* const conf = &c;
 //======================================================================

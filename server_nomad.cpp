@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 HANDLE hLogErrDup;
 
 static SOCKET sockServer = -1;

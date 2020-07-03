@@ -41,9 +41,13 @@ SOCKET create_server_socket(const Config *conf)
 	memset(&sin, 0, sizeof (sin));
 	sin.sin_family = PF_INET;
 
-//	sin.sin_addr.s_addr = inet_addr(conf->host.c_str());
-	sin.sin_addr.s_addr = INADDR_ANY;
-        sin.sin_port = htons(port);
+//	sin.sin_addr.s_addr = INADDR_ANY;
+	if (in4_aton(conf->host.c_str(), &(sin.sin_addr)) != 4)
+	{
+		mprint_err("<%s:%d> Error in4_aton()=%d\n", __func__, __LINE__);
+		return INVALID_SOCKET;
+	}
+    sin.sin_port = htons(port);
 
 	SOCKET sockfd = socket(AF_INET,SOCK_STREAM, IPPROTO_TCP);
 	if(sockfd == INVALID_SOCKET)

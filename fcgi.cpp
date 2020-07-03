@@ -176,7 +176,6 @@ SOCKET create_fcgi_socket(const wchar_t *host)
 	sock_addr.sin_port = htons(atoi(port));
 	sock_addr.sin_family = AF_INET;
 	
-/*	sock_addr.sin_addr.s_addr = inet_addr(addr);*/
 	if (in4_aton(addr, &(sock_addr.sin_addr)) != 4)
 	{
 		print_err("<%s:%d> Error in4_aton()=%d\n", __func__, __LINE__);
@@ -220,7 +219,7 @@ int fcgi_to_stderr(SOCKET fcgi_sock, int cont_len, int timeout)
 	}
 
 	return wr_bytes;
-}
+} 
 //======================================================================
 void fcgi_set_header(char *header, int type, int id, size_t len, int padding_len)
 {

@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 //======================================================================
 int utf16_to_mbs(string& s, const wchar_t *ws)
 {

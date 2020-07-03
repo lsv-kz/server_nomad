@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 static HANDLE hLog, hLogErr;
 //======================================================================
 void create_logfiles(const wchar_t *log_dir, HANDLE *h, HANDLE *hErr)

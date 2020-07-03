@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 request **resp_queue;
 fd_set wrfds;
 int size_queue = 0;

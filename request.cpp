@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 /*====================================================================*/
 void get_request(RequestManager *ReqMan)
 {

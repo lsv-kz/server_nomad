@@ -1,5 +1,7 @@
 #include "main.h"
 
+using namespace std;
+
 int send_multy_part(request *req, int fi, char *rd_buf, int *size);
 
 const char boundary[] = "---------a9b5r7a4c0a2d5a1b8r3a";
