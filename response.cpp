@@ -4,7 +4,7 @@ using namespace std;
 
 int send_multy_part(request *req, int fi, char *rd_buf, int *size);
 
-const char boundary[] = "---------a9b5r7a4c0a2d5a1b8r3a";
+const char boundary[] = "----------a9b5r7a4c0a2d5a1b8r3a";
 //======================================================================
 long long file_size(const wchar_t *s)
 {

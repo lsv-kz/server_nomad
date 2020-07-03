@@ -142,6 +142,7 @@ int main_proc(const char *name_proc)
 		 << "\n   TimeoutKeepAlive = " << conf->TimeoutKeepAlive
 		 << "\n   TimeOut = " << conf->TimeOut
 		 << "\n   TimeoutThreadCond = " << conf->TimeoutThreadCond
+		 << "\n   TimeOutCGI = " << conf->TimeOutCGI
 		 << "\n\n   php: " << conf->usePHP;
 	wcerr << L"\n   path_php: " << conf->wPathPHP
 		 << L"\n   pyPath: " << conf->wPyPath
@@ -219,7 +220,7 @@ int main_proc(const char *name_proc)
 		if (!bSuccess)
 		{
 			DWORD err = GetLastError();
-			mprint_err("<%s:%d> Error CreateProcessA(): %s\n %lu\n", __func__, __LINE__, ss.str().c_str(), err);
+			mprint_err("<%s:%d> Error CreateProcessA(): %s\n error=%lu\n", __func__, __LINE__, ss.str().c_str(), err);
 			exit(1);
 		}
 		
