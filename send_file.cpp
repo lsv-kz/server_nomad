@@ -108,7 +108,6 @@ void delete_timeout_requests(int n, RequestManager * ReqMan)
 void send_files(RequestManager * ReqMan)
 {
     int i, ret = 0;
-    int reverse = 0;
     int num_select, timeout = 1;
     int size_buf = conf->SOCK_BUFSIZE;
     time_t time_write;
@@ -163,18 +162,9 @@ void send_files(RequestManager * ReqMan)
         }
 
         time_write = time(NULL);
-        if (reverse)
-        {
-            reverse = 0;
-            i = 0;
-        }
-        else
-        {
-            reverse = 1;
-            i = num_select - 1;
-        }
-
-        while ((i >= 0) && (i < num_select) && (ret > 0))// 
+        
+        i = 0;
+        while ((ret > 0) && (i < num_select))
         {
             if (*(Qu + i))
             {
@@ -213,11 +203,7 @@ void send_files(RequestManager * ReqMan)
                     }
                 }
             }
-          
-            if (reverse)
-                --i;
-            else
-                ++i;
+            ++i;
         }
     }
 

@@ -77,7 +77,7 @@ class FCGI_params
     }
 
 public:
-    FCGI_params(SOCKET s) { sock = s; }
+    FCGI_params(SOCKET s = INVALID_SOCKET) { sock = s; }
     template <typename Arg>
     int add(const char* name, Arg val)
     {
