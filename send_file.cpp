@@ -4,7 +4,7 @@ using namespace std;
 
 request **Qu;
 fd_set wrfds;
-int size_queue = 0;
+int index_new_resp = 0;
 
 mutex mtx_send;
 condition_variable cond_add;
@@ -47,7 +47,7 @@ int shift_queue()
     int i = 0, empty = 0;
     time_t t = time(NULL);
 
-    while (i < size_queue)
+    while (i < index_new_resp)
     {
         if (*(Qu + i) != NULL)
         {
@@ -65,7 +65,7 @@ int shift_queue()
 
         ++i;
     }
-    size_queue = empty;
+    index_new_resp = empty;
     return 0;
 }
 //======================================================================
@@ -142,7 +142,7 @@ void send_files(RequestManager * ReqMan)
             if (close_thr)
                 break;
             shift_queue();
-            num_select = size_queue;
+            num_select = index_new_resp;
         }
         cond_shift.notify_one();
 
@@ -216,16 +216,16 @@ void push_resp_queue(request * req)
     req->free_resp_headers();
     req->free_range();
     unique_lock<mutex> lk(mtx_send);
-    while (size_queue >= conf->SizeQueue)
+    while (index_new_resp >= conf->SizeQueue)
     {
-        print_err("%d<%s:%d>  wait(); size_conv=%d\n", req->numChld, __func__, __LINE__, size_queue);
+        print_err("%d<%s:%d>  wait(); size_conv=%d\n", req->numChld, __func__, __LINE__, index_new_resp);
         cond_shift.wait(lk);
     }
 
     req->time_write = 0;
-    *(Qu + size_queue) = req;
+    *(Qu + index_new_resp) = req;
     ++count_resp;
-    ++size_queue;
+    ++index_new_resp;
 
     cond_add.notify_one();
 }
