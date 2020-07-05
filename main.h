@@ -30,13 +30,11 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <Winsock2.h> // typedef u_int	SOCKET;
+#include <Winsock2.h>
 #include <winsock.h>
 #include <ws2tcpip.h>
 #include <direct.h>
 #include <process.h>
-
-//using namespace std;
 
 
 #define     MAX_NAME           256

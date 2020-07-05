@@ -23,7 +23,6 @@ RequestManager::RequestManager(int n, HANDLE pipe_out)
 RequestManager::~RequestManager()
 {
     delete[] quReq;
-    print_err("d<%s:%d>  ***********\n", numChld, __func__, __LINE__);
 }
 //----------------------------------------------------------------------
 int RequestManager::get_num_chld(void)

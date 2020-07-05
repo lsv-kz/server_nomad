@@ -2,7 +2,7 @@
 
 using namespace std;
 
-request **resp_queue;
+request **Qu;
 fd_set wrfds;
 int size_queue = 0;
 
@@ -44,37 +44,37 @@ int send_entity(request* req, char* rd_buf, int size_buf)
 //======================================================================
 int shift_queue()
 {
-    int i = 0, i_empty = 0;
+    int i = 0, empty = 0;
     time_t t = time(NULL);
 
     while (i < size_queue)
     {
-        if (resp_queue[i] != NULL)
+        if (*(Qu + i) != NULL)
         {
-            if (resp_queue[i]->time_write == 0)
-                resp_queue[i]->time_write = t;
-            FD_SET(resp_queue[i]->clientSocket, &wrfds);
-            if (i > i_empty)
+            if ((*(Qu + i))->time_write == 0)
+                (*(Qu + i))->time_write = t;
+            FD_SET((*(Qu + i))->clientSocket, &wrfds);
+            if (i > empty)
             {
-                resp_queue[i_empty] = resp_queue[i];
-                resp_queue[i] = NULL;
+                *(Qu + empty) = *(Qu + i);
+                *(Qu + i) = NULL;
             }
 
-            ++i_empty;
+            ++empty;
         }
 
         ++i;
     }
-    size_queue = i_empty;
+    size_queue = empty;
     return 0;
 }
 //======================================================================
 void delete_request(int i, RequestManager * ReqMan)
 {
-    _close(resp_queue[i]->resp.fd);
-    ReqMan->close_response(resp_queue[i]);
+    _close((*(Qu + i))->resp.fd);
+    ReqMan->close_response(*(Qu + i));
     mtx_send.lock();
-    resp_queue[i] = NULL;
+    *(Qu + i) = NULL;
     --count_resp;
     mtx_send.unlock();
 }
@@ -86,17 +86,17 @@ void delete_timeout_requests(int n, RequestManager * ReqMan)
 
     while (i < n)
     {
-        if (resp_queue[i] != NULL)
+        if (*(Qu + i) != NULL)
         {
-            if ((t - resp_queue[i]->time_write) > conf->TimeOut)
+            if ((t - (*(Qu + i))->time_write) > conf->TimeOut)
             {
-                print_err("%d<%s:%d> Timeout = %ld\n", resp_queue[i]->numChld, __func__, __LINE__, t - resp_queue[i]->time_write);
-                _close(resp_queue[i]->resp.fd);
-                resp_queue[i]->req_hdrs.iReferer = NUM_HEADERS - 1;
-                resp_queue[i]->req_hdrs.Value[resp_queue[i]->req_hdrs.iReferer] = (char*)"Timeout";
-                ReqMan->close_connect(resp_queue[i]);
+                print_err("%d<%s:%d> Timeout = %ld\n", (*(Qu + i))->numChld, __func__, __LINE__, t - (*(Qu + i))->time_write);
+                _close((*(Qu + i))->resp.fd);
+                (*(Qu + i))->req_hdrs.iReferer = NUM_HEADERS - 1;
+                (*(Qu + i))->req_hdrs.Value[(*(Qu + i))->req_hdrs.iReferer] = (char*)"Timeout";
+                ReqMan->close_connect(*(Qu + i));
                 mtx_send.lock();
-                resp_queue[i] = NULL;
+                *(Qu + i) = NULL;
                 --count_resp;
                 mtx_send.unlock();
             }
@@ -108,15 +108,16 @@ void delete_timeout_requests(int n, RequestManager * ReqMan)
 void send_files(RequestManager * ReqMan)
 {
     int i, ret = 0;
+    int reverse = 0;
     int num_select, timeout = 1;
     int size_buf = conf->SOCK_BUFSIZE;
     time_t time_write;
     struct timeval tv;
     char* rd_buf;
 
-    resp_queue = new(nothrow) request* [conf->SizeQueue];
-    rd_buf = new(nothrow) char[size_buf];
-    if (!resp_queue || !rd_buf)
+    Qu = new(nothrow) request* [conf->SizeQueue];
+    rd_buf = new(nothrow) char [size_buf];
+    if (!Qu || !rd_buf)
     {
         print_err("%d<%s:%d> Error malloc(): %d\n", ReqMan->get_num_chld(), __func__, __LINE__, errno);
         exit(1);
@@ -127,7 +128,7 @@ void send_files(RequestManager * ReqMan)
     i = 0;
     while (i < conf->SizeQueue)
     {
-        resp_queue[i] = NULL;
+        *(Qu + i) = NULL;
         ++i;
     }
 
@@ -162,52 +163,66 @@ void send_files(RequestManager * ReqMan)
         }
 
         time_write = time(NULL);
-        i = 0;
-        while ((ret > 0) && (i < num_select))
+        if (reverse)
         {
-            if (resp_queue[i])
+            reverse = 0;
+            i = 0;
+        }
+        else
+        {
+            reverse = 1;
+            i = num_select - 1;
+        }
+
+        while ((i >= 0) && (i < num_select) && (ret > 0))// 
+        {
+            if (*(Qu + i))
             {
-                if (FD_ISSET(resp_queue[i]->clientSocket, &wrfds))
+                if (FD_ISSET((*(Qu + i))->clientSocket, &wrfds))
                 {
-                    FD_CLR(resp_queue[i]->clientSocket, &wrfds);
-                    int wr = send_entity(resp_queue[i], rd_buf, size_buf);
+                    FD_CLR((*(Qu + i))->clientSocket, &wrfds);
+                    int wr = send_entity(*(Qu + i), rd_buf, size_buf);
                     if (wr == 0)
                     {
-                        resp_queue[i]->err = wr;
+                        (*(Qu + i))->err = wr;
                         delete_request(i, ReqMan);
                     }
                     else if (wr == -1)
                     {
-                        resp_queue[i]->err = wr;
-                        resp_queue[i]->req_hdrs.iReferer = NUM_HEADERS - 1;
-                        resp_queue[i]->req_hdrs.Value[resp_queue[i]->req_hdrs.iReferer] = (char*)"Connection reset by peer";
+                        (*(Qu + i))->err = wr;
+                        (*(Qu + i))->req_hdrs.iReferer = NUM_HEADERS - 1;
+                        (*(Qu + i))->req_hdrs.Value[(*(Qu + i))->req_hdrs.iReferer] = (char*)"Connection reset by peer";
                         delete_request(i, ReqMan);
                     }
-                    else // (wr > 0)
+                    else // (wr < -1) || (wr > 0)
                     {
-                        resp_queue[i]->time_write = 0;
+                        (*(Qu + i))->time_write = 0;
                     }
                     --ret;
                 }
                 else
                 {
-                    time_t t = time_write - resp_queue[i]->time_write;
+                    time_t t = time_write - (*(Qu + i))->time_write;
                     if (t > conf->TimeOut)
                     {
                         print_err("%d<%s:%d> Timeout = %ld\n", ReqMan->get_num_chld(), __func__, __LINE__, t);
-                        resp_queue[i]->req_hdrs.iReferer = NUM_HEADERS - 1;
-                        resp_queue[i]->req_hdrs.Value[resp_queue[i]->req_hdrs.iReferer] = (char*)"Timeout";
-                        resp_queue[i]->err = -1;
+                        (*(Qu + i))->req_hdrs.iReferer = NUM_HEADERS - 1;
+                        (*(Qu + i))->req_hdrs.Value[(*(Qu + i))->req_hdrs.iReferer] = (char*)"Timeout";
+                        (*(Qu + i))->err = -1;
                         delete_request(i, ReqMan);
                     }
                 }
             }
-            ++i;
+          
+            if (reverse)
+                --i;
+            else
+                ++i;
         }
     }
 
     delete[] rd_buf;
-    delete[] resp_queue;
+    delete[] Qu;
 }
 //======================================================================
 void push_resp_queue(request * req)
@@ -215,14 +230,14 @@ void push_resp_queue(request * req)
     req->free_resp_headers();
     req->free_range();
     unique_lock<mutex> lk(mtx_send);
-    while ((size_queue >= conf->SizeQueue) || resp_queue[size_queue])
+    while (size_queue >= conf->SizeQueue)
     {
         print_err("%d<%s:%d>  wait(); size_conv=%d\n", req->numChld, __func__, __LINE__, size_queue);
         cond_shift.wait(lk);
     }
 
     req->time_write = 0;
-    resp_queue[size_queue] = req;
+    *(Qu + size_queue) = req;
     ++count_resp;
     ++size_queue;
 

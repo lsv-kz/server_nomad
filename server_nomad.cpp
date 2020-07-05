@@ -9,15 +9,7 @@ static bool closeServer = false;
 int read_conf_file(const char* path_conf);
 
 char pipeName[40] = "\\\\.\\pipe\\start-";
-//======================================================================
-BOOL WINAPI CtrlHandlerChild(DWORD fdwCtrlType)
-{
-    if (fdwCtrlType == CTRL_C_EVENT)
-    {
-        return TRUE;
-    }
-    return FALSE;
-}
+
 //======================================================================
 int main_proc(const char* name_proc);
 void child_proc(SOCKET sock, int numChld, HANDLE, HANDLE);
@@ -31,12 +23,6 @@ int main(int argc, char* argv[])
         setlocale(LC_CTYPE, "");
         if (!strcmp(argv[1], "child"))
         {
-            if (!SetConsoleCtrlHandler(CtrlHandlerChild, TRUE))
-            {
-                printf("Error: SetConsoleCtrlHandler()\n");
-                return 1;
-            }
-
             int numChld;
             DWORD ParentID;
             SOCKET sockServ;
@@ -101,6 +87,7 @@ void mprint_err(const char* format, ...);
 
 mutex mtx_balancing;
 int numConn[6] = { 0, 0, 0, 0, 0, 0 };
+
 //======================================================================
 int main_proc(const char* name_proc)
 {
