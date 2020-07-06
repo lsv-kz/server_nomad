@@ -359,7 +359,7 @@ int parse_startline_request(request * req, char* s, int len)
     //----------------------------- method -----------------------------
     p = tmp;
     int i = 0, n = 0;
-    while (i < len)
+    while ((i < len) && (n < (int)sizeof(tmp)))
     {
         char ch = s[i++];
         if ((ch != '\x20') && (ch != '\r') && (ch != '\n'))
@@ -378,20 +378,16 @@ int parse_startline_request(request * req, char* s, int len)
     }
 
     req->uri = s + i;
-    n = 0;
     while (i < len)
     {
         char ch = s[i];
-        if ((ch != '\x20') && (ch != '\r') && (ch != '\n'))
-            n++;
-        else
+        if ((ch == '\x20') || (ch == '\r') || (ch == '\n') || (ch == '\0'))
             break;
         ++i;
     }
 
-    if (s[i] == '\r')
+    if (s[i] == '\r')// HTTP/0.9
     {
-        // HTTP/0.9
         req->httpProt = HTTP09;
         s[i] = 0;
         return 0;
@@ -408,7 +404,7 @@ int parse_startline_request(request * req, char* s, int len)
 
     p = tmp;
     n = 0;
-    while (i < len)
+    while ((i < len) && (n < (int)sizeof(tmp)))
     {
         char ch = s[i++];
         if ((ch != '\x20') && (ch != '\r') && (ch != '\n'))
@@ -502,41 +498,6 @@ int parse_headers(request * req, char* s, int len)
     req->req_hdrs.Value[req->req_hdrs.countReqHeaders] = NULL;
 
     return 0;
-}
-//======================================================================
-#include <iomanip>
-//======================================================================
-string hex_dump(void* p, int n)
-{
-    int count, addr = 0, col;
-    if (!p) return "";
-    unsigned char* buf = (unsigned char*)p;
-    char str[18];
-    stringstream ss;
-    string s, s_out;
-
-    for (count = 0; count < n;)
-    {
-        ss << uppercase << fixed << right << setw(8) << setfill('0') << hex << addr << "  ";
-        getline(ss, s);
-        ss.clear();
-        s_out += s;
-        for (col = 0, addr = addr + 0x10; (count < n) && (col < 16); count++, col++)
-        {
-            ss << uppercase << fixed << right << setw(2) << setfill('0') << hex << (int) * (buf + count) << " ";
-            getline(ss, s);
-            s_out += s;
-            ss.clear();
-            str[col] = (*(buf + count) >= 32 && *(buf + count) < 127) ? *(buf + count) : '.';
-        }
-        str[col] = 0;
-        ss << "  " << setfill(' ') << setw(((16 - (col))) * 3) << "" << str << "";
-        getline(ss, s);
-        s_out += (s + "\n");
-        ss.clear();
-    }
-    //	s_out += "\n";
-    return s_out;
 }
 //======================================================================
 void path_correct(wstring & path)

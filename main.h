@@ -326,7 +326,6 @@ int clean_path(char* path);
 const char* content_type(const wchar_t* path);
 int parse_startline_request(request* req, char* s, int len);
 int parse_headers(request* req, char* s, int len);
-std::string hex_dump(void* p, int n);
 void path_correct(std::wstring& path);
 //----------------------- multibytes -----------------------------------
 int utf16_to_mbs(std::string& s, const wchar_t* ws);
