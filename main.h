@@ -125,6 +125,9 @@ extern const Config* const conf;
 class request
 {
 public:
+    request* prev;
+    request* next;
+    
     static SOCKET serverSocket;
 
     unsigned int numReq, numConn;
