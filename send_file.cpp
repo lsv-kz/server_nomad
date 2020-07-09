@@ -9,7 +9,8 @@ fd_set wrfds;
 
 mutex mtx_send;
 condition_variable cond_add;
-condition_variable cond_minus;
+//condition_variable cond_minus;
+
 int count_resp = 0;
 int close_thr = 0;
 int num_select = 0;
@@ -77,12 +78,12 @@ request* del_from_list(request* r, RequestManager* ReqMan)
     mtx_send.unlock();
     _close(r->resp.fd);
     ReqMan->close_response(r);
-    cond_minus.notify_one();
+ //   cond_minus.notify_one();
 
     return prev;
 }
 //======================================================================
-int set_list()
+void set_list()
 {
     int i = 0;
     time_t t = time(NULL);
@@ -96,15 +97,14 @@ int set_list()
         ++i;
     }
     num_select = i;
-    return 0;
 }
 //======================================================================
-void delete_timeout_requests(RequestManager* ReqMan)
+void delete_timeout_requests(int n, RequestManager* ReqMan)
 {
     time_t t = time(NULL);
     request* tmp = list_start, * r;
 
-    for (; tmp; tmp = tmp->next)
+    for (; tmp && (n > 0); tmp = tmp->next)
     {
         if ((t - tmp->time_write) > conf->TimeOut)
         {
@@ -115,6 +115,7 @@ void delete_timeout_requests(RequestManager* ReqMan)
             r->req_hdrs.Value[r->req_hdrs.iReferer] = (char*)"Timeout";
             del_from_list(r, ReqMan);
         }
+        --n;
     }
 }
 //======================================================================
@@ -147,8 +148,9 @@ void send_files(RequestManager * ReqMan)
 
             if (close_thr)
                 break;
-            set_list();
+            ret = count_resp;
         }
+        set_list();
 
         tv.tv_sec = timeout;
         tv.tv_usec = 0;
@@ -160,7 +162,7 @@ void send_files(RequestManager * ReqMan)
         }
         else if (ret == 0)
         {
-            delete_timeout_requests(ReqMan);
+            delete_timeout_requests(num_select, ReqMan);
             continue;
         }
 
@@ -222,14 +224,8 @@ void push_resp_queue(request * req)
     req->free_resp_headers();
     req->free_range();
     unique_lock<mutex> lk(mtx_send);
-    while (count_resp >= conf->SizeQueue)
-    {
-        print_err("%d<%s:%d>  wait(); size_conv=%d\n", req->numChld, __func__, __LINE__, count_resp);
-        cond_minus.wait(lk);
-    }
 
     req->time_write = 0;
-
     req->next = NULL;
     req->prev = list_end;
     if (list_start)
