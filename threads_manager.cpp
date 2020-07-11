@@ -362,7 +362,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         unsigned char ch;
         socklen_t addrSize;
         struct sockaddr_storage clientAddr;
-        ReqMan->wait_close_req(470);
+        ReqMan->wait_close_req(conf->SizeQueue);
         DWORD rd;
         bool res;
         res = ReadFile(hParent, &ch, 1, &rd, NULL);
@@ -392,6 +392,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
             }
 
             int err = ErrorStrSock(__func__, __LINE__, "Error accept()");
+            print_err("%d<%s:%d> Error accept(): %d\n", numChld, __func__, __LINE__, err);
             if (err == WSAEMFILE)
             {
                 ReqMan->timedwait_close_req();
@@ -457,7 +458,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
 
     ReqMan->close_manager();
     thrReqMan.join();
-    close_conv();
+    close_queue();
     SendFile.join();
     CloseHandle(hParent);
 

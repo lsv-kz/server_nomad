@@ -359,6 +359,6 @@ void print_log(request* req);
 //----------------------------------------------------------------------
 void send_files(RequestManager* ReqMan);
 void push_resp_queue(request* res);
-void close_conv(void);
+void close_queue(void);
 
 #endif

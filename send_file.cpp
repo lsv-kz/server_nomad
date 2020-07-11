@@ -9,7 +9,6 @@ fd_set wrfds;
 
 mutex mtx_send;
 condition_variable cond_add;
-//condition_variable cond_minus;
 
 int count_resp = 0;
 int close_thr = 0;
@@ -47,15 +46,12 @@ int send_entity(request* req, char* rd_buf, int size_buf)
 //======================================================================
 request* del_from_list(request* r, RequestManager* ReqMan)
 {
-    request* tmp, * prev = r->prev;
+    request * prev = r->prev;
     mtx_send.lock();
     if ((r->prev) && (r->next))
     {
-        tmp = r->prev;
-        tmp->next = r->next;
-
-        tmp = r->next;
-        tmp->prev = r->prev;
+        r->prev->next = r->next;
+        r->next->prev = r->prev;
     }
     else if ((!r->prev) && (r->next))
     {
@@ -70,31 +66,29 @@ request* del_from_list(request* r, RequestManager* ReqMan)
     else // (!r->prev) && (!r->next)
     {
         list_start = list_end = NULL;
-        if (count_resp != 1)
-            print_err("%d<%s:%d> Error: count_resp != 1\n", r->numChld, __func__, __LINE__);
     }
 
     --count_resp;
     mtx_send.unlock();
     _close(r->resp.fd);
     ReqMan->close_response(r);
- //   cond_minus.notify_one();
 
     return prev;
 }
 //======================================================================
-void set_list()
+void set_list(int n)
 {
     int i = 0;
     time_t t = time(NULL);
     request* tmp = list_start;
 
-    for (; tmp; tmp = tmp->next)
+    for (; tmp && (n > 0); tmp = tmp->next)
     {
         if (tmp->time_write == 0)
             tmp->time_write = t;
         FD_SET(tmp->clientSocket, &wrfds);
         ++i;
+        --n;
     }
     num_select = i;
 }
@@ -122,7 +116,6 @@ void delete_timeout_requests(int n, RequestManager* ReqMan)
 void send_files(RequestManager * ReqMan)
 {
     int i, ret = 0;
-    int timeout = 1;
     int size_buf = conf->SOCK_BUFSIZE;
     time_t time_write;
     struct timeval tv;
@@ -150,9 +143,9 @@ void send_files(RequestManager * ReqMan)
                 break;
             ret = count_resp;
         }
-        set_list();
+        set_list(ret);
 
-        tv.tv_sec = timeout;
+        tv.tv_sec = 1;
         tv.tv_usec = 0;
         ret = select(0, NULL, &wrfds, NULL, &tv);
         if (ret == -1)
@@ -240,7 +233,7 @@ void push_resp_queue(request * req)
     cond_add.notify_one();
 }
 //======================================================================
-void close_conv(void)
+void close_queue(void)
 {
     close_thr = 1;
     cond_add.notify_one();
