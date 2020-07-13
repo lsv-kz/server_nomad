@@ -98,7 +98,7 @@ void delete_timeout_requests(int n, RequestManager* ReqMan)
     time_t t = time(NULL);
     request* tmp = list_start, * r;
 
-    for (; tmp && (n > 0); tmp = tmp->next)
+    for (; tmp && (n > 0); )
     {
         if ((t - tmp->time_write) > conf->TimeOut)
         {
@@ -107,9 +107,13 @@ void delete_timeout_requests(int n, RequestManager* ReqMan)
             print_err("%d<%s:%d> Timeout = %ld\n", r->numChld, __func__, __LINE__, t - r->time_write);
             r->req_hdrs.iReferer = NUM_HEADERS - 1;
             r->req_hdrs.Value[r->req_hdrs.iReferer] = (char*)"Timeout";
-            del_from_list(r, ReqMan);
+            tmp = del_from_list(r, ReqMan);
         }
         --n;
+        if (!tmp)
+            break;
+        else
+            tmp = tmp->next;
     }
 }
 //======================================================================
