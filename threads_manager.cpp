@@ -40,9 +40,9 @@ int RequestManager::get_num_req(void)
 //----------------------------------------------------------------------
 int RequestManager::get_num_thr(void)
 {
-    mtx_thr.lock();
+  mtx_thr.lock();
     int ret = count_thr;
-    mtx_thr.unlock();
+  mtx_thr.unlock();
     return ret;
 }
 //----------------------------------------------------------------------
@@ -53,17 +53,18 @@ int RequestManager::get_all_req_thr(void)
 //----------------------------------------------------------------------
 int RequestManager::start_thr(void)
 {
-    mtx_thr.lock();
+  mtx_thr.lock();
     int ret = ++count_thr;
-    mtx_thr.unlock();
+    ++all_thr;
+  mtx_thr.unlock();
     return ret;
 }
 //----------------------------------------------------------------------
 int RequestManager::exit_thr()
 {
-    mtx_thr.lock();
+  mtx_thr.lock();
     int ret = --count_thr;
-    mtx_thr.unlock();
+  mtx_thr.unlock();
     cond_exit_thr.notify_one();
     return ret;
 }
@@ -105,7 +106,7 @@ int RequestManager::push_req(request* req)
 {
     int ret, n_wait_thr;
     {
-        unique_lock<mutex> lk(mtx_qu);
+        unique_lock<mutex> lk(mtx_thr);
         while (quReq[count_push])
         {
             cond_pop.wait(lk);
@@ -135,7 +136,7 @@ request* RequestManager::pop_req()
 {
     request* req;
     {
-        unique_lock<mutex> lk(mtx_qu);
+        unique_lock<mutex> lk(mtx_thr);
 
         ++num_wait_thr;
         while (quReq[count_pop] == NULL)
@@ -179,33 +180,11 @@ int RequestManager::end_req(int* nthr, int* nreq)
     return ret;
 }
 //----------------------------------------------------------------------
-int RequestManager::wait_new_req(void)
-{
-    unique_lock<mutex> lk(mtx_thr);
-
-    while ((num_create_thr <= 0) && !stop_manager)
-    {
-        cond_start_req.wait(lk);
-    }
-    --num_create_thr;
-    return stop_manager;
-}
-//----------------------------------------------------------------------
-int RequestManager::check_num_thr(int* nthr)
-{
-    unique_lock<mutex> lk(mtx_thr);
-    while ((count_thr >= conf->MaxThreads) && !stop_manager)
-    {
-        cond_exit_thr.wait(lk);
-    }
-    return stop_manager;
-}
-//----------------------------------------------------------------------
 int RequestManager::get_len_qu(void)
 {
-    mtx_qu.lock();
+    mtx_thr.lock();
     int ret = len_qu;
-    mtx_qu.unlock();
+    mtx_thr.unlock();
     return ret;
 }
 //--------------------------------------------
@@ -249,6 +228,33 @@ void RequestManager::close_response(request * req)
         push_req(req);
     }
 }
+//----------------------------------------------------------------------
+int RequestManager::wait_create_thr(int* n)
+{
+    {
+        unique_lock<mutex> lk(mtx_thr);
+        while (1)
+        {
+            while ((num_create_thr <= 0) && !stop_manager)
+            {
+                cond_start_req.wait(lk);
+            }
+
+            while ((count_thr >= conf->MaxThreads) && !stop_manager)
+            {
+                cond_exit_thr.wait(lk);
+            }
+
+            if (num_create_thr > 0)
+                break;
+        }
+
+        --num_create_thr;
+        *n = count_thr;
+    }
+
+    return stop_manager;
+}
 //======================================================================
 void thread_req_manager(int numProc, RequestManager * ReqMan)
 {
@@ -257,8 +263,8 @@ void thread_req_manager(int numProc, RequestManager * ReqMan)
 
     while (1)
     {
-        if (ReqMan->wait_new_req()) break;
-        if (ReqMan->check_num_thr(&num_thr)) break;
+        if (ReqMan->wait_create_thr(&num_thr))
+            break;
 
         try
         {
@@ -274,7 +280,6 @@ void thread_req_manager(int numProc, RequestManager * ReqMan)
         thr.detach();
 
         num_thr = ReqMan->start_thr();
-        ReqMan->inc_all_thr();
     }
     print_err("%d<%s:%d> Exit thread_req_manager()\n", numProc, __func__, __LINE__);
 }
@@ -339,7 +344,6 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         }
         ++allNumThr;
         ReqMan->start_thr();
-        ReqMan->inc_all_thr();
         thr.detach();
         ++n;
     }

@@ -257,7 +257,7 @@ public:
 class RequestManager
 {
 private:
-    std::mutex mtx_qu, mtx_thr, mtx_close_req;
+    std::mutex  mtx_thr, mtx_close_req;
     std::condition_variable cond_push, cond_pop;
     std::condition_variable cond_close_req, cond_start_req, cond_exit_thr;
     int count_push, count_pop, num_wait_thr, len_qu;
@@ -286,9 +286,7 @@ public:
     int push_req(request* req);
     request* pop_req();
     int end_req(int* nthr, int* nconn);
-    int wait_new_req();
-    int check_num_thr(int* nthr);
-    void inc_all_thr() { ++all_thr; }
+    int wait_create_thr(int* n);
     void close_manager();
     void close_connect(request*);
     void close_response(request*);
