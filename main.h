@@ -30,6 +30,9 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <time.h>
+
+//#define FD_SETSIZE     128
+
 #include <Winsock2.h>
 #include <winsock.h>
 #include <ws2tcpip.h>
@@ -94,7 +97,8 @@ struct Config
 
     int ListenBacklog = 128;
 
-    int SizeQueue = 480;
+    int MaxRequests = 256;
+    int SizeQueue;
 
     char KeepAlive = 'y';
     int TimeoutKeepAlive = 5;
@@ -257,16 +261,17 @@ public:
 class RequestManager
 {
 private:
+    request* list_begin = NULL;
+    request* list_end = NULL;
+
     std::mutex  mtx_thr, mtx_close_req;
     std::condition_variable cond_push, cond_pop;
-    std::condition_variable cond_close_req, cond_start_req, cond_exit_thr;
+    std::condition_variable cond_close_req, cond_create_thr, cond_exit_thr;
     int count_push, count_pop, num_wait_thr, len_qu;
     int count_thr, count_req, stop_manager, num_create_thr;
     int numChld;
     HANDLE hClose_out;
     unsigned long all_thr;
-    request** quReq;
-
 public:
     RequestManager(const RequestManager&) = delete;
     RequestManager(int, HANDLE);
@@ -276,14 +281,12 @@ public:
     int get_len_qu(void);
     int get_num_req(void);
     int get_num_thr(void);
-    int get_all_req_thr(void);
+    int get_all_thr(void);
     int start_thr(void);
     int exit_thr();
     void wait_exit_thr(int n);
-    int start_req(void);
-    void wait_close_req(int n);
     void timedwait_close_req(void);
-    int push_req(request* req);
+    int push_req(request* req, int i);
     request* pop_req();
     int end_req(int* nthr, int* nconn);
     int wait_create_thr(int* n);

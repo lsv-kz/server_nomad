@@ -1,5 +1,5 @@
 #include "main.h"
-
+#include <winsock2.h>
 using namespace std;
 
 /*====================================================================*/
@@ -146,6 +146,49 @@ int write_timeout(SOCKET sock, const char* buf, size_t len, int timeout)
 
     return write_bytes;
 }
+//======================================================================
+/*int write_timeout(SOCKET sock, const char* buf, size_t len, int timeout)
+{
+    WSAPOLLFD writefds;
+    int ret, write_bytes = 0;
+ //   print_err("<%s:%d> ------\n", __func__, __LINE__);
+    writefds.fd = sock;
+    writefds.events = POLLWRNORM;
+
+    while (len > 0)
+    {
+        ret = WSAPoll(&writefds, 1, timeout * 1000);
+        if (ret == SOCKET_ERROR)
+        {
+            ErrorStrSock(__func__, __LINE__, "Error WSAPoll()");
+            return -1;
+        }
+        else if (!ret)
+        {
+            print_err("<%s:%d> TimeOut WSAPoll(), tm=%d\n", __func__, __LINE__, timeout);
+            return -1;
+        }
+
+        if (writefds.revents != POLLWRNORM)
+        {
+            print_err("<%s:%d> writefds.revents=0x%x\n", __func__, __LINE__, writefds.revents);
+            return -1;
+        }
+
+        ret = send(sock, buf, (int)len, 0);
+        if (ret == SOCKET_ERROR)
+        {
+            ErrorStrSock(__func__, __LINE__, "Error send()");
+            return -1;
+        }
+
+        write_bytes += ret;
+        len -= ret;
+        buf += ret;
+    }
+
+    return write_bytes;
+}*/
 //======================================================================
 int ReadFromPipe(PIPENAMED* Pipe, char* buf, int sizeBuf, int* allRD, int maxRd, int timeout)
 {

@@ -6,36 +6,21 @@ request* create_req(RequestManager* ReqMan);
 //======================================================================
 RequestManager::RequestManager(int n, HANDLE pipe_out)
 {
-    count_push = count_pop = len_qu = stop_manager = all_thr = 0;
-    count_thr = count_req = num_wait_thr = num_create_thr = 0;
+    list_begin = list_end = NULL;
+    len_qu = stop_manager = all_thr = 0;
+    count_thr = count_req = num_wait_thr = 0;
     numChld = n;
     hClose_out = pipe_out;
-
-    quReq = new(nothrow) request * [conf->SizeQueue * sizeof(request*)];
-    if (!quReq)
-    {
-        print_err("<%s:%d> Error new()\n", __func__, __LINE__);
-        exit(1);
-    }
-    memset(quReq, 0, conf->SizeQueue * sizeof(request*));
 }
 //----------------------------------------------------------------------
 RequestManager::~RequestManager()
 {
-    delete[] quReq;
+    ;
 }
 //----------------------------------------------------------------------
 int RequestManager::get_num_chld(void)
 {
     return numChld;
-}
-//----------------------------------------------------------------------
-int RequestManager::get_num_req(void)
-{
-    mtx_thr.lock();
-    int ret = count_req;
-    mtx_thr.unlock();
-    return ret;
 }
 //----------------------------------------------------------------------
 int RequestManager::get_num_thr(void)
@@ -46,9 +31,17 @@ int RequestManager::get_num_thr(void)
     return ret;
 }
 //----------------------------------------------------------------------
-int RequestManager::get_all_req_thr(void)
+int RequestManager::get_all_thr(void)
 {
     return all_thr;
+}
+//----------------------------------------------------------------------
+int RequestManager::get_num_req(void)
+{
+    mtx_thr.lock();
+    int ret = count_req;
+    mtx_thr.unlock();
+    return ret;
 }
 //----------------------------------------------------------------------
 int RequestManager::start_thr(void)
@@ -78,56 +71,38 @@ void RequestManager::wait_exit_thr(int n)
     }
 }
 //----------------------------------------------------------------------
-int RequestManager::start_req(void)
-{
-    mtx_thr.lock();
-    int ret = ++count_req;
-    mtx_thr.unlock();
-    //	cond_start_req.notify_one();
-    return ret;
-}
-//----------------------------------------------------------------------
-void RequestManager::wait_close_req(int n)
-{
-    unique_lock<mutex> lk(mtx_close_req);
-    while (count_req >= n)
-    {
-        cond_close_req.wait(lk);
-    }
-}
-//----------------------------------------------------------------------
 void RequestManager::timedwait_close_req(void)
 {
     unique_lock<mutex> lk(mtx_close_req);
     cond_close_req.wait_for(lk, chrono::milliseconds(1000 * conf->TimeoutThreadCond));
 }
 //----------------------------------------------------------------------
-int RequestManager::push_req(request* req)
+int RequestManager::push_req(request* req, int inc)
 {
-    int ret, n_wait_thr;
+    int ret;
     {
         unique_lock<mutex> lk(mtx_thr);
-        while (quReq[count_push])
+        while (count_req >= conf->MaxRequests) // =====================================
         {
-            cond_pop.wait(lk);
+            cond_close_req.wait(lk);
         }
 
-        quReq[count_push] = req;
+        req->next = NULL;
+        req->prev = list_end;
+        if (list_begin)
+        {
+            list_end->next = req;
+            list_end = req;
+        }
+        else
+            list_begin = list_end = req;
+
+        if (inc)
+            ++count_req;
         ret = ++len_qu;
-        n_wait_thr = num_wait_thr;
     }
-    ++count_push;
-    if (count_push >= conf->SizeQueue) count_push = 0;
 
     cond_push.notify_one();
-
-    if (n_wait_thr < ret)
-    {
-        mtx_thr.lock();
-        ++num_create_thr;
-        mtx_thr.unlock();
-        cond_start_req.notify_one();
-    }
 
     return ret;
 }
@@ -135,26 +110,24 @@ int RequestManager::push_req(request* req)
 request* RequestManager::pop_req()
 {
     request* req;
+    unique_lock<mutex> lk(mtx_thr);
+    ++num_wait_thr;
+    while (list_begin == NULL)
     {
-        unique_lock<mutex> lk(mtx_thr);
-
-        ++num_wait_thr;
-        while (quReq[count_pop] == NULL)
-        {
-            cond_push.wait(lk);
-        }
-
-        --num_wait_thr;
-        req = quReq[count_pop];
-        quReq[count_pop] = NULL;
-
-        --len_qu;
+        cond_push.wait(lk);
     }
+    --num_wait_thr;
+    req = list_begin;
+    if (list_begin->next)
+    {
+        list_begin->next->prev = NULL;
+        list_begin = list_begin->next;
+    }
+    else
+        list_begin = list_end = NULL;
 
-    ++count_pop;
-    if (count_pop >= conf->SizeQueue) count_pop = 0;
-
-    cond_pop.notify_one();
+    --len_qu;
+    cond_create_thr.notify_one();
     return req;
 }
 //----------------------------------------------------------------------
@@ -162,11 +135,8 @@ int RequestManager::end_req(int* nthr, int* nreq)
 {
     int ret = 0;
     mtx_thr.lock();
-    if (num_wait_thr < num_create_thr)
-    {
-        --num_create_thr;
-    }
-    else if (count_thr > conf->MinThreads)
+
+    if ((num_wait_thr > len_qu) && (count_thr > conf->MinThreads))
     {
         --count_thr;
         ret = EXIT_THR;
@@ -176,56 +146,52 @@ int RequestManager::end_req(int* nthr, int* nreq)
     *nreq = count_req;
     mtx_thr.unlock();
     if (ret)
-        cond_exit_thr.notify_one();
+        cond_exit_thr.notify_all();
     return ret;
 }
 //----------------------------------------------------------------------
 int RequestManager::get_len_qu(void)
 {
-    mtx_thr.lock();
+  mtx_thr.lock();
     int ret = len_qu;
-    mtx_thr.unlock();
+  mtx_thr.unlock();
     return ret;
 }
 //--------------------------------------------
 void RequestManager::close_manager()
 {
     stop_manager = 1;
-    cond_start_req.notify_one();
-}
-//----------------------------------------------------------------------
-void RequestManager::close_connect(request * req)
-{
-    if (req->err != -1)
-        print_log(req);
-    shutdown(req->clientSocket, SD_BOTH);
-    closesocket(req->clientSocket);
-    delete req;
-    //----------- close_req(); ---------------
-    mtx_thr.lock();
-    --count_req;
-    mtx_thr.unlock();
-    cond_close_req.notify_one();
-    unsigned char ch = (unsigned char)numChld;
-    DWORD rd;
-    bool res = WriteFile(hClose_out, &ch, 1, &rd, NULL);
-    if (!res)
-    {
-        PrintError(__func__, __LINE__, "Error WriteFile()");
-        exit(1);
-    }
+    cond_create_thr.notify_one();
 }
 //----------------------------------------------------------------------
 void RequestManager::close_response(request * req)
 {
     if (req->connKeepAlive == 0) // || req->err < 0)
-        close_connect(req);
+    {
+        //   if (req->err != -1)
+        print_log(req);
+        //----------------- close connect ------------------------------
+        shutdown(req->clientSocket, SD_BOTH);
+        closesocket(req->clientSocket);
+        delete req;
+      mtx_thr.lock();
+        --count_req;
+      mtx_thr.unlock();
+        cond_close_req.notify_all();
+        unsigned char ch = (unsigned char)numChld;
+        DWORD rd;
+        bool res = WriteFile(hClose_out, &ch, 1, &rd, NULL);
+        if (!res)
+        {
+            PrintError(__func__, __LINE__, "Error WriteFile()");
+            exit(1);
+        }
+    }
     else
     {
-        if (req->err != -1)
-            print_log(req);
+        print_log(req);
         ++req->numReq;
-        push_req(req);
+        push_req(req, 0);
     }
 }
 //----------------------------------------------------------------------
@@ -234,10 +200,13 @@ int RequestManager::wait_create_thr(int* n)
     {
         unique_lock<mutex> lk(mtx_thr);
         while (1)
-        {
-            while ((num_create_thr <= 0) && !stop_manager)
+        {    // ?
+            while ((num_wait_thr >= len_qu) || ((count_req - len_qu) >= conf->SizeQueue))
+                //   while ((num_wait_thr >= len_qu))// || (((count_req - len_qu) * 2 + len_qu) >= 1000))
             {
-                cond_start_req.wait(lk);
+                if (stop_manager)
+                    break;
+                cond_create_thr.wait(lk);
             }
 
             while ((count_thr >= conf->MaxThreads) && !stop_manager)
@@ -245,11 +214,11 @@ int RequestManager::wait_create_thr(int* n)
                 cond_exit_thr.wait(lk);
             }
 
-            if (num_create_thr > 0)
+            if ((num_wait_thr < len_qu) && ((count_req - len_qu) < conf->SizeQueue))
+                //   if ((num_wait_thr < len_qu))// && (((count_req - len_qu) * 2 + len_qu) < 1000))
                 break;
         }
 
-        --num_create_thr;
         *n = count_thr;
     }
 
@@ -279,7 +248,7 @@ void thread_req_manager(int numProc, RequestManager * ReqMan)
 
         thr.detach();
 
-        num_thr = ReqMan->start_thr();
+        ReqMan->start_thr();
     }
     print_err("%d<%s:%d> Exit thread_req_manager()\n", numProc, __func__, __LINE__);
 }
@@ -323,11 +292,9 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
     }
     catch (...)
     {
-        print_err("%d<%s:%d> Error create thread(send_file_): errno=%d \n", numChld, __func__, __LINE__, errno);
-        exit(errno);
+        print_err("%d<%s:%d> Error create thread(send_file_)\n", numChld, __func__, __LINE__);
+        exit(1);
     }
-
-    SendFile.detach();
     //------------------------------------------------------------------
     n = 0;
     while (n < conf->MinThreads)
@@ -339,8 +306,8 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         }
         catch (...)
         {
-            print_err("%d<%s:%d> Error create thread: errno=%d\n", numChld, __func__, __LINE__);
-            exit(errno);
+            print_err("%d<%s:%d> Error create thread\n", numChld, __func__, __LINE__);
+            exit(1);
         }
         ++allNumThr;
         ReqMan->start_thr();
@@ -356,9 +323,8 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
     }
     catch (...)
     {
-        print_err("<%s:%d> Error create thread %d: errno=%d\n", __func__,
-            __LINE__, allNumThr, errno);
-        exit(errno);
+        print_err("<%s:%d> Error create thread %d\n", __func__, __LINE__, allNumThr);
+        exit(1);
     }
 
     while (1)
@@ -366,7 +332,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         unsigned char ch;
         socklen_t addrSize;
         struct sockaddr_storage clientAddr;
-        ReqMan->wait_close_req(conf->SizeQueue);
+       
         DWORD rd;
         bool res;
         res = ReadFile(hParent, &ch, 1, &rd, NULL);
@@ -387,6 +353,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         SOCKET clientSocket = accept(sockServer, (struct sockaddr*) & clientAddr, &addrSize);
         if (clientSocket == INVALID_SOCKET)
         {
+            int err = ErrorStrSock(__func__, __LINE__, "Error accept()");
             ch = 0x80;
             res = WriteFile(hParent, &ch, 1, &rd, NULL);
             if (!res)
@@ -395,7 +362,6 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
                 break;
             }
 
-            int err = ErrorStrSock(__func__, __LINE__, "Error accept()");
             print_err("%d<%s:%d> Error accept(): %d\n", numChld, __func__, __LINE__, err);
             if (err == WSAEMFILE)
             {
@@ -439,14 +405,13 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
             sizeof(req->remotePort),
             NI_NUMERICHOST | NI_NUMERICSERV);
 
-        ReqMan->push_req(req);
-        ReqMan->start_req();
+        ReqMan->push_req(req, 1);
     }
 
     int i = 0;
     n = ReqMan->get_num_thr();
     print_err("%d<%s:%d>  numThr=%d; allNumThr=%u; allConn=%u; num_req=%d\n", numChld,
-        __func__, __LINE__, n, ReqMan->get_all_req_thr(), allConn, ReqMan->get_num_req());
+        __func__, __LINE__, n, ReqMan->get_all_thr(), allConn, ReqMan->get_num_req());
     while (i < n)
     {
         request* req;
@@ -456,7 +421,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
             break;
         }
         req->clientSocket = INVALID_SOCKET;
-        ReqMan->push_req(req);
+        ReqMan->push_req(req, 1);
         ++i;
     }
 

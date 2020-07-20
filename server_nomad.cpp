@@ -124,6 +124,7 @@ int main_proc(const char* name_proc)
         << "\n   SockBufSize = " << conf->SOCK_BUFSIZE
         << "\n   NumChld = " << conf->NumChld
         << "\n\n   ListenBacklog = " << conf->ListenBacklog
+        << "\n   MaxRequests = " << conf->MaxRequests
         << "\n   SizeQueue = " << conf->SizeQueue
         << "\n\n   KeepAlive " << conf->KeepAlive
         << "\n   TimeoutKeepAlive = " << conf->TimeoutKeepAlive

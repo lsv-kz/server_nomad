@@ -2,8 +2,9 @@
 
 using namespace std;
 
-request* list_start = NULL;
-request* list_end = NULL;
+static request* list_start = NULL, * list_end = NULL;
+
+static int max_resp = 0;
 
 fd_set wrfds;
 
@@ -13,7 +14,6 @@ condition_variable cond_minus;
 
 int count_resp = 0;
 int close_thr = 0;
-int num_select = 0;
 /*====================================================================*/
 int send_entity(request* req, char* rd_buf, int size_buf)
 {
@@ -48,66 +48,71 @@ int send_entity(request* req, char* rd_buf, int size_buf)
 request* del_from_list(request* r, RequestManager* ReqMan)
 {
 mtx_send.lock();
-    request* prev = r->prev;
+    request* ret = NULL;
     if (r->prev && r->next)
     {
-        r->prev->next = r->next;
+        ret = r->prev->next = r->next;
         r->next->prev = r->prev;
     }
     else if (r->prev && !r->next)
     {
+        ret = r->prev->next = r->next;
         list_end = r->prev;
-        list_end->next = NULL;
     }
     else if (!r->prev && r->next)
     {
-        list_start = r->next;
-        list_start->prev = NULL;
+        r->next->prev = r->prev;
+        ret = list_start = r->next;
     }
     else if (!r->prev && !r->next)
     {
-        list_start = list_end = NULL;
+        ret = list_start = list_end = NULL;
     }
-
-    --count_resp;
 mtx_send.unlock();
     _close(r->resp.fd);
     ReqMan->close_response(r);
-    cond_minus.notify_one();
-    return prev;
+    return ret;
 }
 //======================================================================
-void set_list()
+int set_list()
 {
     int i = 0;
     time_t t = time(NULL);
     request* tmp = list_start;
 
-    for (; tmp; tmp = tmp ? tmp->next : tmp)
+    for (; tmp; )
     {
         if (tmp->time_write == 0)
             tmp->time_write = t;
         FD_SET(tmp->clientSocket, &wrfds);
         ++i;
+        if (tmp)
+            tmp = tmp->next;
+        if (i >= max_resp)
+            break;
     }
-    num_select = i;
+
+    return i;
 }
 //======================================================================
 void delete_timeout_requests(int n, RequestManager* ReqMan)
 {
     time_t t = time(NULL);
-    request* tmp = list_start, * r;
+    request* tmp = list_start;
 
-    for (; tmp && (n > 0); tmp = tmp ? tmp->next : tmp)
+    for (; tmp && (n > 0); )
     {
         if ((t - tmp->time_write) > conf->TimeOut)
         {
-            r = tmp;
-            tmp = tmp->prev;
-            print_err("%d<%s:%d> Timeout = %ld\n", r->numChld, __func__, __LINE__, t - r->time_write);
-            r->req_hdrs.iReferer = NUM_HEADERS - 1;
-            r->req_hdrs.Value[r->req_hdrs.iReferer] = (char*)"Timeout";
-            tmp = del_from_list(r, ReqMan);
+            print_err("%d<%s:%d> Timeout = %ld\n", tmp->numChld, __func__, __LINE__, t - tmp->time_write);
+            tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
+            tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
+            tmp = del_from_list(tmp, ReqMan);
+        }
+        else
+        {
+            if (tmp)
+                tmp = tmp->next;
         }
         --n;
     }
@@ -119,13 +124,16 @@ void send_files(RequestManager * ReqMan)
     int size_buf = conf->SOCK_BUFSIZE;
     time_t time_write;
     struct timeval tv;
+    int num_chld = ReqMan->get_num_chld();
     request* tmp;
     char* rd_buf;
+
+    max_resp = FD_SETSIZE;
 
     rd_buf = new(nothrow) char [size_buf];
     if (!rd_buf)
     {
-        print_err("%d<%s:%d> Error malloc(): %d\n", ReqMan->get_num_chld(), __func__, __LINE__, errno);
+        print_err("%d<%s:%d> Error malloc()\n", num_chld, __func__, __LINE__);
         exit(1);
     }
 
@@ -136,25 +144,31 @@ void send_files(RequestManager * ReqMan)
     {
         {
             unique_lock<mutex> lk(mtx_send);
-            while ((count_resp == 0) && (!close_thr))
+            while ((list_start == NULL) && (!close_thr))
+            {
+                count_resp = 0;
                 cond_add.wait(lk);
+            }
 
             if (close_thr)
                 break;
-            set_list();
+            count_resp = set_list();
+            if (count_resp == 0)
+                continue;
         }
 
         tv.tv_sec = 1;
         tv.tv_usec = 0;
         ret = select(0, NULL, &wrfds, NULL, &tv);
-        if (ret == -1)
+        if (ret == SOCKET_ERROR)
         {
-            print_err("%d<%s:%d> Error select(): %d\n", ReqMan->get_num_chld(), __func__, __LINE__, WSAGetLastError());
-            exit(1);
+            DWORD err = WSAGetLastError();
+            print_err("%d<%s:%d> Error select(): %d, num_select=%d\n", num_chld, __func__, __LINE__, err, count_resp);
+            exit(1); // ?
         }
         else if (ret == 0)
         {
-            delete_timeout_requests(num_select, ReqMan);
+            delete_timeout_requests(count_resp, ReqMan);
             continue;
         }
 
@@ -162,7 +176,7 @@ void send_files(RequestManager * ReqMan)
         
         i = 0;
         tmp = list_start;
-        while ((i < num_select) && (ret > 0) && tmp)
+        while ((i < count_resp) && (ret > 0) && tmp)
         {
             if (FD_ISSET(tmp->clientSocket, &wrfds))
             {
@@ -183,6 +197,8 @@ void send_files(RequestManager * ReqMan)
                 else // (wr < -1) || (wr > 0)
                 {
                     tmp->time_write = 0;
+                    if (tmp)
+                        tmp = tmp->next;
                 }
                 --ret;
             }
@@ -197,12 +213,12 @@ void send_files(RequestManager * ReqMan)
                     tmp->err = -1;
                     tmp = del_from_list(tmp, ReqMan);
                 }
+                else
+                {
+                    if (tmp)
+                        tmp = tmp->next;
+                }
             }
-
-            if (!tmp)
-                break;
-            else
-                tmp = tmp->next;
 
             ++i;
         }
@@ -216,12 +232,7 @@ void push_resp_queue(request * req)
     req->free_resp_headers();
     req->free_range();
     {
-        unique_lock<mutex> lk(mtx_send);
-        while (count_resp >= conf->SizeQueue)
-        {
-            cond_minus.wait(lk);
-        }
-
+    unique_lock<mutex> lk(mtx_send);
         req->time_write = 0;
         req->next = NULL;
         req->prev = list_end;
@@ -232,7 +243,6 @@ void push_resp_queue(request * req)
         }
         else
             list_start = list_end = req;
-        ++count_resp;
     }
     cond_add.notify_one();
 }
