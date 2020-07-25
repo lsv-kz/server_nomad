@@ -3,7 +3,7 @@
 using namespace std;
 
 //======================================================================
-int check_range(request* req)
+int check_range(Connect* req)
 {
     int size, numPart, m, n;
     struct Range* r = req->resp.rangeBytes;
@@ -52,7 +52,7 @@ int check_range(request* req)
     return numPart;
 }
 //======================================================================
-int check_str_range(request* req)
+int check_str_range(Connect* req)
 {
     char* p0 = req->sRange, * p;
     stringstream ss;
@@ -131,7 +131,7 @@ int check_str_range(request* req)
     return numPart;
 }
 //======================================================================
-int parse_range(request * req)
+int parse_range(Connect* req)
 {
     int n = check_str_range(req);
     if (n <= 0)

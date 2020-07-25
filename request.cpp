@@ -8,7 +8,7 @@ void get_request(RequestManager* ReqMan)
     int readFromClient;
     int num_thr, num_req, n;
     char* p;
-    request* req;
+    Connect* req;
     int numChld = ReqMan->get_num_chld();
 
     while (1)
@@ -154,7 +154,7 @@ void get_request(RequestManager* ReqMan)
     }
 }
 //======================================================================
-int options(request * req)
+int options(Connect* req)
 {
     req->resp.respStatus = RS204;
     send_header_response(req);

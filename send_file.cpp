@@ -2,7 +2,7 @@
 
 using namespace std;
 
-static request* list_start = NULL, * list_end = NULL;
+static Connect* list_start = NULL, * list_end = NULL;
 
 static int max_resp = 0;
 
@@ -15,7 +15,7 @@ condition_variable cond_minus;
 int count_resp = 0;
 int close_thr = 0;
 /*====================================================================*/
-int send_entity(request* req, char* rd_buf, int size_buf)
+int send_entity(Connect* req, char* rd_buf, int size_buf)
 {
     int ret;
     int len;
@@ -45,10 +45,10 @@ int send_entity(request* req, char* rd_buf, int size_buf)
     return ret;
 }
 //======================================================================
-request* del_from_list(request* r, RequestManager* ReqMan)
+Connect* del_from_list(Connect* r, RequestManager* ReqMan)
 {
 mtx_send.lock();
-    request* ret = NULL;
+    Connect* ret = NULL;
     if (r->prev && r->next)
     {
         ret = r->prev->next = r->next;
@@ -78,7 +78,7 @@ int set_list()
 {
     int i = 0;
     time_t t = time(NULL);
-    request* tmp = list_start;
+    Connect* tmp = list_start;
 
     for (; tmp; )
     {
@@ -98,7 +98,7 @@ int set_list()
 void delete_timeout_requests(int n, RequestManager* ReqMan)
 {
     time_t t = time(NULL);
-    request* tmp = list_start;
+    Connect* tmp = list_start;
 
     for (; tmp && (n > 0); )
     {
@@ -125,7 +125,7 @@ void send_files(RequestManager * ReqMan)
     time_t time_write;
     struct timeval tv;
     int num_chld = ReqMan->get_num_chld();
-    request* tmp;
+    Connect* tmp;
     char* rd_buf;
 
     max_resp = FD_SETSIZE;
@@ -227,23 +227,22 @@ void send_files(RequestManager * ReqMan)
     delete [] rd_buf;
 }
 //======================================================================
-void push_resp_queue(request * req)
+void push_resp_queue(Connect* req)
 {
     req->free_resp_headers();
     req->free_range();
+mtx_send.lock();
+    req->time_write = 0;
+    req->next = NULL;
+    req->prev = list_end;
+    if (list_start)
     {
-    unique_lock<mutex> lk(mtx_send);
-        req->time_write = 0;
-        req->next = NULL;
-        req->prev = list_end;
-        if (list_start)
-        {
-            list_end->next = req;
-            list_end = req;
-        }
-        else
-            list_start = list_end = req;
+        list_end->next = req;
+        list_end = req;
     }
+    else
+        list_start = list_end = req;
+mtx_send.unlock();
     cond_add.notify_one();
 }
 //======================================================================

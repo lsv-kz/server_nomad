@@ -126,7 +126,7 @@ void print_err(const char* format, ...)
     }
 }
 //======================================================================
-void print_log(request* req)
+void print_log(Connect* req)
 {
     stringstream ss;
 

@@ -98,7 +98,6 @@ struct Config
     int ListenBacklog = 128;
 
     int MaxRequests = 256;
-    int SizeQueue;
 
     char KeepAlive = 'y';
     int TimeoutKeepAlive = 5;
@@ -126,11 +125,11 @@ struct Config
 
 extern const Config* const conf;
 
-class request
+class Connect
 {
 public:
-    request* prev;
-    request* next;
+    Connect* prev;
+    Connect* next;
     
     static SOCKET serverSocket;
 
@@ -261,38 +260,38 @@ public:
 class RequestManager
 {
 private:
-    request* list_begin = NULL;
-    request* list_end = NULL;
+    Connect* list_begin = NULL;
+    Connect* list_end = NULL;
 
-    std::mutex  mtx_thr, mtx_close_req;
+    std::mutex  mtx_thr;
+
     std::condition_variable cond_push, cond_pop;
-    std::condition_variable cond_close_req, cond_create_thr, cond_exit_thr;
-    int count_push, count_pop, num_wait_thr, len_qu;
-    int count_thr, count_req, stop_manager, num_create_thr;
-    int numChld;
-    HANDLE hClose_out;
+    std::condition_variable cond_close_conn, cond_new_thr, cond_exit_thr;
+
+    int count_conn, num_wait_thr, len_qu;
+    int numChld, count_thr, stop_manager;
+
     unsigned long all_thr;
+    HANDLE hClose_out;
+
 public:
     RequestManager(const RequestManager&) = delete;
     RequestManager(int, HANDLE);
     ~RequestManager();
     //-------------------------------
     int get_num_chld(void);
-    int get_len_qu(void);
-    int get_num_req(void);
     int get_num_thr(void);
-    int get_all_thr(void);
     int start_thr(void);
     int exit_thr();
+    int check_num_conn();
     void wait_exit_thr(int n);
     void timedwait_close_req(void);
-    int push_req(request* req, int i);
-    request* pop_req();
+    int push_req(Connect* req, int i);
+    Connect* pop_req();
     int end_req(int* nthr, int* nconn);
     int wait_create_thr(int* n);
     void close_manager();
-    void close_connect(request*);
-    void close_response(request*);
+    void close_response(Connect*);
 };
 
 extern HANDLE hLogErrDup;
@@ -301,15 +300,15 @@ int in4_aton(const char* host, struct in_addr* addr);
 SOCKET create_server_socket(const Config* conf);
 
 void get_request(RequestManager* ReqMan);
-int response(RequestManager* ReqMan, request* req);
-int options(request* req);
-int index_dir(RequestManager* ReqMan, request* req, std::wstring& path);
-int parse_range(request* req);
+int response(RequestManager* ReqMan, Connect* req);
+int options(Connect* req);
+int index_dir(RequestManager* ReqMan, Connect* req, std::wstring& path);
+int parse_range(Connect* req);
 
 int decode(char* s_in, size_t len_in, char* s_out, int len);
 //----------------------------------------------------------------------
-int cgi(request* req);
-int fcgi(request* req);
+int cgi(Connect* req);
+int fcgi(Connect* req);
 /*---------------------------- functions.c ---------------------------*/
 int ErrorStrSock(const char* f, int line, const char* s);
 int PrintError(const char* f, int line, const char* s);
@@ -328,8 +327,8 @@ char* strstr_lowercase(const char* s, const char* key);
 int clean_path(char* path);
 
 const char* content_type(const wchar_t* path);
-int parse_startline_request(request* req, char* s, int len);
-int parse_headers(request* req, char* s, int len);
+int parse_startline_request(Connect* req, char* s, int len);
+int parse_headers(Connect* req, char* s, int len);
 void path_correct(std::wstring& path);
 //----------------------- multibytes -----------------------------------
 int utf16_to_mbs(std::string& s, const wchar_t* ws);
@@ -339,10 +338,10 @@ int utf16_to_utf8(std::string& s, const wchar_t* ws);
 int utf8_to_utf16(char* u8, std::wstring& ws);
 int utf8_to_utf16(std::string& u8, std::wstring& ws);
 //-------------------- send_resp ---------------------------------------
-void send_message(request* req, const char* msg);
-int create_multipart_head(char* buf, request* req, struct Range* ranges, int len_buf);
-char* create_header(request* req, const char* name, const char* val);
-int send_header_response(request* req);
+void send_message(Connect* req, const char* msg);
+int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len_buf);
+char* create_header(Connect* req, const char* name, const char* val);
+int send_header_response(Connect* req);
 //----------------------------------------------------------------------
 int read_timeout(SOCKET sock, char* buf, int len, int timeout);
 int write_timeout(SOCKET sock, const char* buf, size_t len, int timeout);
@@ -352,14 +351,14 @@ long long client_to_script(SOCKET sock, PIPENAMED* Pipe, long long cont_len, int
 int send_file_1(SOCKET sock, int fd_in, char* buf, int* size, long long offset, long long* cont_len);
 int send_file_2(SOCKET sock, int fd_in, char* buf, int size, long long offset);
 int read_line_sock(SOCKET sock, char* buf, int size, int timeout);
-int read_headers(request* req, int timeout1, int timeout2);
+int read_headers(Connect* req, int timeout1, int timeout2);
 //----------------------------------------------------------------------
 HANDLE open_logfiles(HANDLE, HANDLE);
 void print_err(const char* format, ...);
-void print_log(request* req);
+void print_log(Connect* req);
 //----------------------------------------------------------------------
 void send_files(RequestManager* ReqMan);
-void push_resp_queue(request* res);
+void push_resp_queue(Connect* r);
 void close_queue(void);
 
 #endif

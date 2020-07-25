@@ -2,7 +2,7 @@
 
 using namespace std;
 
-int send_multy_part(request* req, int fi, char* rd_buf, int* size);
+int send_multy_part(Connect* req, int fi, char* rd_buf, int* size);
 
 const char boundary[] = "----------a9b5r7a4c0a2d5a1b8r3a";
 //======================================================================
@@ -16,7 +16,7 @@ long long file_size(const wchar_t* s)
         return -1;
 }
 //======================================================================
-int response(RequestManager* ReqMan, request* req)
+int response(RequestManager* ReqMan, Connect* req)
 {
     int numChld = ReqMan->get_num_chld();
 
@@ -249,7 +249,7 @@ int response(RequestManager* ReqMan, request* req)
     return 1;
 }
 //======================================================================
-int send_multy_part(request * req, int fd, char* rd_buf, int* size)
+int send_multy_part(Connect* req, int fd, char* rd_buf, int* size)
 {
     int n;
     long long send_all_bytes, len;
@@ -387,7 +387,7 @@ const char* status_resp(int st)
     return "";
 }
 //========================== send_message ==============================
-void send_message(request * req, const char* msg)
+void send_message(Connect* req, const char* msg)
 {
     ostringstream html;
 
@@ -432,7 +432,7 @@ void send_message(request * req, const char* msg)
     }
 }
 /*====================================================================*/
-int create_multipart_head(char* buf, request * req, struct Range* ranges, int len_buf)
+int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len_buf)
 {
     int n;
 
@@ -463,7 +463,7 @@ int create_multipart_head(char* buf, request * req, struct Range* ranges, int le
     return 0;
 }
 /*====================================================================*/
-char* create_header(request * req, const char* name, const char* val)
+char* create_header(Connect* req, const char* name, const char* val)
 {
     if (name)
     {
@@ -487,7 +487,7 @@ char* create_header(request * req, const char* name, const char* val)
     return NULL;
 }
 /*====================================================================*/
-int send_header_response(request * req)
+int send_header_response(Connect* req)
 {
     int n, len = 0, i;
 

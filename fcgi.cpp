@@ -313,7 +313,7 @@ int fcgi_get_header(SOCKET fcgi_sock, fcgi_header * header)
     return n;
 }
 //======================================================================
-int fcgi_chunk(request * req, SOCKET fcgi_sock, fcgi_header * header)
+int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
 {
     int ret;
     int chunked = ((req->httpProt == HTTP11) && req->connKeepAlive) ? 1 : 0;
@@ -420,7 +420,7 @@ int fcgi_chunk(request * req, SOCKET fcgi_sock, fcgi_header * header)
     return 0;
 }
 //======================================================================
-int fcgi_read_headers(request * req, SOCKET fcgi_sock)
+int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
 {
     int n, ret;
     fcgi_header header;
@@ -521,7 +521,7 @@ int fcgi_read_headers(request * req, SOCKET fcgi_sock)
     return fcgi_chunk(req, fcgi_sock, &header);
 }
 //======================================================================
-int fcgi_send_param(request * req, SOCKET fcgi_sock)
+int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
 {
     int n;
     char buf[4096];
@@ -657,7 +657,7 @@ err_param:
     return -RS502;
 }
 //======================================================================
-int fcgi(request * req)
+int fcgi(Connect* req)
 {
     SOCKET  fcgi_sock;
     int ret = 0;

@@ -1,6 +1,6 @@
 #include "chunk.h"
 
-int cgi_chunk(request* req, PIPENAMED* Pipe, int maxRd);
+int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd);
 //======================================================================
 class CreateEnv
 {
@@ -67,7 +67,7 @@ wstring cgi_script_file(const wstring& name)
     return name;
 }
 //======================================================================
-int cgi(request* req)
+int cgi(Connect* req)
 {
     int retExit = -1;
     size_t len;
@@ -400,7 +400,7 @@ errExit:
     return retExit;
 }
 //======================================================================
-int cgi_chunk(request* req, PIPENAMED* Pipe, int maxRd)
+int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
 {
     int n, ReadFromScript = 0;
     char buf[512], * ptr_buf;

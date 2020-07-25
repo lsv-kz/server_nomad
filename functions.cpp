@@ -353,7 +353,7 @@ int clean_path(char* path)
     return cnt;
 }
 //======================================================================
-int parse_startline_request(request * req, char* s, int len)
+int parse_startline_request(Connect* req, char* s, int len)
 {
     char* p, tmp[16];
     //----------------------------- method -----------------------------
@@ -425,7 +425,7 @@ int parse_startline_request(request * req, char* s, int len)
     return 0;
 }
 //======================================================================
-int parse_headers(request * req, char* s, int len)
+int parse_headers(Connect* req, char* s, int len)
 {
     int n;
     char* pName = s, * pVal, * p;

@@ -5,7 +5,7 @@ struct stFile
     string name;
     long long size;
 };
-int index_chunk(request* req, vector <string>& vecDirs, vector <struct stFile>& vecFiles);
+int index_chunk(Connect* req, vector <string>& vecDirs, vector <struct stFile>& vecFiles);
 //======================================================================
 static int isimage(const char* name)
 {
@@ -40,7 +40,7 @@ bool compareVec(stFile s1, stFile s2)
     return (s1.name < s2.name);
 }
 //======================================================================
-int index_dir(RequestManager * ReqMan, request * req, wstring & path)
+int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
 {
     int dirs, files;
     WIN32_FIND_DATAW ffd;
@@ -94,7 +94,7 @@ int index_dir(RequestManager * ReqMan, request * req, wstring & path)
     return index_chunk(req, vecDirs, vecFiles);
 }
 //======================================================================
-int index_chunk(request * req, vector <string> & vecDirs, vector <struct stFile> & vecFiles)
+int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> & vecFiles)
 {
     int n;
     int dirs = vecDirs.size(), files = vecFiles.size();

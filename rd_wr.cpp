@@ -515,7 +515,7 @@ int read_line_sock(SOCKET sock, char* buf, int size, int timeout)
     return -RS414;
 }
 //======================================================================
-int check_req(request * req, char* s, char** p_newline, unsigned int* len, int* start)
+int check_req(Connect* req, char* s, char** p_newline, unsigned int* len, int* start)
 {
     char* pr, * pn;
     //	print_err("<%s:%d> %d; %d\n", __func__, __LINE__, *len, *len - 1);
@@ -577,7 +577,7 @@ int check_req(request * req, char* s, char** p_newline, unsigned int* len, int* 
     return 0;
 }
 //======================================================================
-int read_headers_select(request * req, int timeout1, int timeout2)
+int read_headers_select(Connect* req, int timeout1, int timeout2)
 {
     int all_rd = 0, ret = -1;
     int startline = 0;
@@ -647,7 +647,7 @@ int read_headers_select(request * req, int timeout1, int timeout2)
     return ret;
 }
 //======================================================================
-int read_headers(request * req, int timeout1, int timeout2)
+int read_headers(Connect* req, int timeout1, int timeout2)
 {
     int all_rd = 0;
 
