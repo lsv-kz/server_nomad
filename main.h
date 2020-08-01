@@ -249,6 +249,7 @@ public:
 
     void free_range()
     {
+        resp.numPart = 0;
         if (resp.rangeBytes)
         {
             delete[] resp.rangeBytes;

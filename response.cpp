@@ -511,7 +511,7 @@ int send_header_response(Connect* req)
         ss << "Accept-Ranges: bytes\r\n";
     }
 
-    if (req->resp.numPart == 1)
+    if ((req->resp.numPart == 1) && req->resp.rangeBytes)
     {
         ss << "Content-Range: bytes " << req->resp.rangeBytes[0].start << "-" << req->resp.rangeBytes[0].end << "/" << req->resp.fileSize << "\r\n";
         ss << "Content-Length: " << req->resp.rangeBytes[0].part_len << "\r\n";

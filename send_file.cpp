@@ -48,46 +48,54 @@ int send_entity(Connect* req, char* rd_buf, int size_buf)
 Connect* del_from_list(Connect* r, RequestManager* ReqMan)
 {
 mtx_send.lock();
-    Connect* ret = NULL;
+
     if (r->prev && r->next)
     {
-        ret = r->prev->next = r->next;
+        r->prev->next = r->next;
         r->next->prev = r->prev;
     }
     else if (r->prev && !r->next)
     {
-        ret = r->prev->next = r->next;
+        r->prev->next = r->next;
         list_end = r->prev;
     }
     else if (!r->prev && r->next)
     {
         r->next->prev = r->prev;
-        ret = list_start = r->next;
+        list_start = r->next;
     }
     else if (!r->prev && !r->next)
     {
-        ret = list_start = list_end = NULL;
+        list_start = list_end = NULL;
     }
 mtx_send.unlock();
     _close(r->resp.fd);
     ReqMan->close_response(r);
-    return ret;
 }
 //======================================================================
-int set_list()
+int set_list(RequestManager* ReqMan)
 {
     int i = 0;
     time_t t = time(NULL);
-    Connect* tmp = list_start;
+    Connect* tmp = list_start, *next;
 
-    for (; tmp; )
+    for (; tmp; tmp = next)
     {
+        next = tmp->next;
+
         if (tmp->time_write == 0)
             tmp->time_write = t;
+        else if ((t - tmp->time_write) > conf->TimeOut)
+        {
+            print_err("%d<%s:%d> Timeout = %ld\n", tmp->numChld, __func__, __LINE__, t - tmp->time_write);
+            tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
+            tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
+            del_from_list(tmp, ReqMan);
+        }
+
         FD_SET(tmp->clientSocket, &wrfds);
         ++i;
-        if (tmp)
-            tmp = tmp->next;
+
         if (i >= max_resp)
             break;
     }
@@ -98,22 +106,19 @@ int set_list()
 void delete_timeout_requests(int n, RequestManager* ReqMan)
 {
     time_t t = time(NULL);
-    Connect* tmp = list_start;
+    Connect* tmp = list_start, *next;
 
-    for (; tmp && (n > 0); )
+    for (; tmp && (n > 0); tmp = next)
     {
+        next = tmp->next;
         if ((t - tmp->time_write) > conf->TimeOut)
         {
             print_err("%d<%s:%d> Timeout = %ld\n", tmp->numChld, __func__, __LINE__, t - tmp->time_write);
             tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
             tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
-            tmp = del_from_list(tmp, ReqMan);
+            del_from_list(tmp, ReqMan);
         }
-        else
-        {
-            if (tmp)
-                tmp = tmp->next;
-        }
+        
         --n;
     }
 }
@@ -122,10 +127,8 @@ void send_files(RequestManager * ReqMan)
 {
     int i, ret = 0;
     int size_buf = conf->SOCK_BUFSIZE;
-    time_t time_write;
     struct timeval tv;
     int num_chld = ReqMan->get_num_chld();
-    Connect* tmp;
     char* rd_buf;
 
     max_resp = FD_SETSIZE;
@@ -152,7 +155,7 @@ void send_files(RequestManager * ReqMan)
 
             if (close_thr)
                 break;
-            count_resp = set_list();
+            count_resp = set_list(ReqMan);
             if (count_resp == 0)
                 continue;
         }
@@ -171,54 +174,36 @@ void send_files(RequestManager * ReqMan)
             delete_timeout_requests(count_resp, ReqMan);
             continue;
         }
-
-        time_write = time(NULL);
         
         i = 0;
-        tmp = list_start;
+        Connect *tmp = list_start, *next;
         while ((i < count_resp) && (ret > 0) && tmp)
         {
+            next = tmp->next;
             if (FD_ISSET(tmp->clientSocket, &wrfds))
             {
+                --ret;
                 FD_CLR(tmp->clientSocket, &wrfds);
                 int wr = send_entity(tmp, rd_buf, size_buf);
                 if (wr == 0)
                 {
                     tmp->err = wr;
-                    tmp = del_from_list(tmp, ReqMan);
+                    del_from_list(tmp, ReqMan);
                 }
                 else if (wr == -1)
                 {
                     tmp->err = wr;
                     tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
                     tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Connection reset by peer";
-                    tmp = del_from_list(tmp, ReqMan);
+                    del_from_list(tmp, ReqMan);
                 }
-                else // (wr < -1) || (wr > 0)
+                else if (wr > 0)
                 {
                     tmp->time_write = 0;
-                    if (tmp)
-                        tmp = tmp->next;
                 }
-                --ret;
+          //      else; // (wr < -1)
             }
-            else
-            {
-                time_t t = time_write - tmp->time_write;
-                if (t > conf->TimeOut)
-                {
-                    print_err("%d<%s:%d> Timeout = %ld\n", ReqMan->get_num_chld(), __func__, __LINE__, t);
-                    tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
-                    tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
-                    tmp->err = -1;
-                    tmp = del_from_list(tmp, ReqMan);
-                }
-                else
-                {
-                    if (tmp)
-                        tmp = tmp->next;
-                }
-            }
+            tmp = next;
 
             ++i;
         }
