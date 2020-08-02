@@ -45,7 +45,7 @@ int send_entity(Connect* req, char* rd_buf, int size_buf)
     return ret;
 }
 //======================================================================
-Connect* del_from_list(Connect* r, RequestManager* ReqMan)
+void del_from_list(Connect* r, RequestManager* ReqMan)
 {
 mtx_send.lock();
 
@@ -83,18 +83,22 @@ int set_list(RequestManager* ReqMan)
     {
         next = tmp->next;
 
-        if (tmp->time_write == 0)
-            tmp->time_write = t;
-        else if ((t - tmp->time_write) > conf->TimeOut)
+        if (((t - tmp->time_write) > conf->TimeOut) && (tmp->time_write != 0))
         {
+            tmp->err = -1;
             print_err("%d<%s:%d> Timeout = %ld\n", tmp->numChld, __func__, __LINE__, t - tmp->time_write);
             tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
             tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
             del_from_list(tmp, ReqMan);
         }
+        else
+        {
+            if (tmp->time_write == 0)
+                tmp->time_write = t;
 
-        FD_SET(tmp->clientSocket, &wrfds);
-        ++i;
+            FD_SET(tmp->clientSocket, &wrfds);
+            ++i;
+        }
 
         if (i >= max_resp)
             break;
@@ -113,6 +117,7 @@ void delete_timeout_requests(int n, RequestManager* ReqMan)
         next = tmp->next;
         if ((t - tmp->time_write) > conf->TimeOut)
         {
+            tmp->err = -1;
             print_err("%d<%s:%d> Timeout = %ld\n", tmp->numChld, __func__, __LINE__, t - tmp->time_write);
             tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
             tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
