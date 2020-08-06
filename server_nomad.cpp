@@ -7,18 +7,19 @@ HANDLE hLogErrDup;
 static SOCKET sockServer = -1;
 static bool closeServer = false;
 int read_conf_file(const char* path_conf);
-
-char pipeName[40] = "\\\\.\\pipe\\start-";
-
 //======================================================================
 int main_proc(const char* name_proc);
-void child_proc(SOCKET sock, int numChld, HANDLE, HANDLE);
+void child_proc(SOCKET sock, int numChld, HANDLE, HANDLE, HANDLE);
 //======================================================================
 int main(int argc, char* argv[])
 {
-    read_conf_file(".");
+    if (read_conf_file(".") < 0)
+    {
+        cin.get();
+        exit(1);
+    }
     //------------------------------------------------------------------
-    if (argc == 8)
+    if (argc == 10)
     {
         setlocale(LC_CTYPE, "");
         if (!strcmp(argv[1], "child"))
@@ -26,17 +27,20 @@ int main(int argc, char* argv[])
             int numChld;
             DWORD ParentID;
             SOCKET sockServ;
-            HANDLE hPipeChld, hCloseReq;
+            HANDLE hIn, hOut, hReady;
             HANDLE hChildLog, hChildLogErr;
 
             stringstream ss;
             ss << argv[2] << ' ' << argv[3] << ' '
                 << argv[4] << ' ' << argv[5] << ' '
-                << argv[6] << ' ' << argv[7];
+                << argv[6] << ' ' << argv[7] << ' '
+                << argv[8] << ' ' << argv[9];
             ss >> numChld;
             ss >> ParentID;
             ss >> sockServ;
-            ss >> hCloseReq;
+            ss >> hIn;
+            ss >> hOut;
+            ss >> hReady;
             ss >> hChildLog;
             ss >> hChildLogErr;
 
@@ -47,24 +51,7 @@ int main(int argc, char* argv[])
             saAttr.bInheritHandle = FALSE;
             saAttr.lpSecurityDescriptor = NULL;
 
-            size_t n = strlen(pipeName);
-            snprintf(pipeName + n, sizeof(pipeName) - n, "%lu-%d", ParentID, numChld);
-            hPipeChld = CreateFileA(
-                pipeName,
-                GENERIC_READ | GENERIC_WRITE,
-                0,
-                &saAttr,
-                OPEN_EXISTING,
-                0,
-                NULL);
-            if (hPipeChld == INVALID_HANDLE_VALUE)
-            {
-                print_err("<%d> Error CreateFile, GLE=%lu; [%s]\n", __LINE__, GetLastError(), pipeName);
-                cin.get();
-                exit(1);
-            }
-
-            child_proc(sockServ, numChld, hPipeChld, hCloseReq);
+            child_proc(sockServ, numChld, hIn, hOut, hReady);
             exit(0);
         }
         else
@@ -82,12 +69,13 @@ int main(int argc, char* argv[])
 }
 //======================================================================
 void create_logfiles(const wchar_t* log_dir, HANDLE* h, HANDLE* hErr);
-void read_from_pipe(HANDLE close_in);
+void read_from_pipe(HANDLE);
 void mprint_err(const char* format, ...);
 
 mutex mtx_balancing;
-int numConn[6] = { 0, 0, 0, 0, 0, 0 };
+condition_variable cond_wait;
 
+int numConn = 0;
 //======================================================================
 int main_proc(const char* name_proc)
 {
@@ -95,9 +83,6 @@ int main_proc(const char* name_proc)
     HANDLE hPipeParent[6] = { NULL };
     HANDLE hLog, hLogErr;
     create_logfiles(conf->wLogDir.c_str(), &hLog, &hLogErr);
-
-    size_t len = strlen(pipeName);
-    snprintf(pipeName + len, sizeof(pipeName) - len, "%lu-", pid);
 
     SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -112,9 +97,9 @@ int main_proc(const char* name_proc)
         exit(1);
     }
 
-    if ((conf->NumChld < 1) || (conf->NumChld > 6))
+    if (conf->NumChld < 1)
     {
-        cerr << "<" << __LINE__ << "> Error NumChld = " << conf->NumChld << "; [1 < NumChld <= 6]\n";
+        cerr << "<" << __LINE__ << "> Error NumChld = " << conf->NumChld << "; [NumChld < 1]\n";
         exit(1);
     }
     cerr << " [" << get_time() << "] - server \"" << conf->ServerSoftware << "\" run\n"
@@ -127,6 +112,7 @@ int main_proc(const char* name_proc)
         << "\n   MinThreads = " << conf->MinThreads
         << "\n\n   ListenBacklog = " << conf->ListenBacklog
         << "\n   MaxRequests = " << conf->MaxRequests
+        << "\n   SizeQueue = " << conf->SizeQueue
         << "\n\n   KeepAlive " << conf->KeepAlive
         << "\n   TimeoutKeepAlive = " << conf->TimeoutKeepAlive
         << "\n   TimeOut = " << conf->TimeOut
@@ -143,17 +129,48 @@ int main_proc(const char* name_proc)
         << L"\n   ClientMaxBodySize = " << conf->ClientMaxBodySize
         << L"\n\n";
     //------------------------------------------------------------------
-    HANDLE close_in = NULL;
-    HANDLE close_out = NULL;
+    HANDLE ready_in = NULL;
+    HANDLE ready_out = NULL;
 
-    if (!CreatePipe(&close_in, &close_out, &saAttr, 0))
+    if (!CreatePipe(&ready_in, &ready_out, &saAttr, 0))
     {
         cerr << "<" << __LINE__ << "> Error: CreatePipe" << "\n";
         cin.get();
         exit(1);
     }
 
-    if (!SetHandleInformation(close_in, HANDLE_FLAG_INHERIT, 0))
+    if (!SetHandleInformation(ready_in, HANDLE_FLAG_INHERIT, 0))
+    {
+        cerr << "<" << __LINE__ << "> Error: SetHandleInformation" << "\n";
+        cin.get();
+        exit(1);
+    }
+    //------------------------------------------------------------------
+    HANDLE to_in = NULL, to_out = NULL;
+    HANDLE from_in = NULL, from_out = NULL;
+
+    if (!CreatePipe(&to_in, &to_out, &saAttr, 0))
+    {
+        cerr << "<" << __LINE__ << "> Error: CreatePipe" << "\n";
+        cin.get();
+        exit(1);
+    }
+
+    if (!SetHandleInformation(to_out, HANDLE_FLAG_INHERIT, 0))
+    {
+        cerr << "<" << __LINE__ << "> Error: SetHandleInformation" << "\n";
+        cin.get();
+        exit(1);
+    }
+
+    if (!CreatePipe(&from_in, &from_out, &saAttr, 0))
+    {
+        cerr << "<" << __LINE__ << "> Error: CreatePipe" << "\n";
+        cin.get();
+        exit(1);
+    }
+
+    if (!SetHandleInformation(from_in, HANDLE_FLAG_INHERIT, 0))
     {
         cerr << "<" << __LINE__ << "> Error: SetHandleInformation" << "\n";
         cin.get();
@@ -161,37 +178,8 @@ int main_proc(const char* name_proc)
     }
     //------------------------------------------------------------------
     int numChld = 0;
-    const int pipeBufSize = 8;
-    len = strlen(pipeName);
     while (numChld < conf->NumChld)
     {
-        snprintf(pipeName + len, sizeof(pipeName) - len, "%d", numChld);
-
-        hPipeParent[numChld] = CreateNamedPipeA(
-            pipeName,
-            PIPE_ACCESS_DUPLEX,
-            PIPE_TYPE_BYTE |
-            PIPE_READMODE_BYTE |
-            PIPE_WAIT,
-            1,
-            pipeBufSize,
-            pipeBufSize,
-            5000,
-            NULL);
-        if (hPipeParent[numChld] == INVALID_HANDLE_VALUE)
-        {
-            printf("<%d> CreateNamedPipe failed, GLE=%lu\n", __LINE__, GetLastError());
-            cin.get();
-            return -1;
-        }
-
-        if (!SetHandleInformation(hPipeParent[numChld], HANDLE_FLAG_INHERIT, 0))
-        {
-            printf("<%d> Error SetHandleInformation, GLE=%lu\n", __LINE__, GetLastError());
-            cin.get();
-            exit(1);
-        }
-
         PROCESS_INFORMATION pi;
         ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
 
@@ -202,7 +190,8 @@ int main_proc(const char* name_proc)
 
         stringstream ss;
         ss << name_proc << " child " << numChld << ' ' << pid << ' '
-            << sockServer << ' ' << close_out << ' ' << hLog << ' ' << hLogErr;
+            << sockServer << ' ' << to_in << ' ' << from_out << ' ' << ready_out << ' '
+            << hLog << ' ' << hLogErr;
 
         cerr << name_proc << " child " << numChld << "\n";
         bool bSuccess = CreateProcessA(NULL, (char*)ss.str().c_str(), NULL, NULL, true, 0, NULL, NULL, &si, &pi);
@@ -215,11 +204,12 @@ int main_proc(const char* name_proc)
 
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
-        ConnectNamedPipe(hPipeParent[numChld], NULL);
         ++numChld;
     }
 
-    CloseHandle(close_out);
+    CloseHandle(ready_out);
+    CloseHandle(to_in);
+    CloseHandle(from_out);
     //------------------------------------------------------------------
     if (_wchdir(conf->wRootDir.c_str()))
     {
@@ -231,7 +221,7 @@ int main_proc(const char* name_proc)
     thread ReadPipe;
     try
     {
-        ReadPipe = thread(read_from_pipe, close_in);
+        ReadPipe = thread(read_from_pipe, ready_in);
     }
     catch (...)
     {
@@ -245,6 +235,15 @@ int main_proc(const char* name_proc)
     while (1)
     {
         FD_SET(sockServer, &rdfds);
+
+        {
+            unique_lock<mutex> lk(mtx_balancing);
+            while (numConn <= 0)
+            {
+                cond_wait.wait(lk);
+            }
+        }
+ 
         int ret = select(0, &rdfds, NULL, NULL, NULL);
         if ((ret == SOCKET_ERROR) || closeServer)
         {
@@ -257,23 +256,9 @@ int main_proc(const char* name_proc)
 
         if (FD_ISSET(sockServer, &rdfds))
         {
-            int minConn = numConn[0];
-            int i = 0;
-            num_chld = 0;
-            while (i < conf->NumChld)
-            {
-                lock_guard<mutex> lk(mtx_balancing);
-                if (numConn[i] < minConn)
-                {
-                    minConn = numConn[i];
-                    num_chld = i;
-                }
-                ++i;
-            }
-
-            unsigned char ch = num_chld;
+            unsigned char ch = 1;
             DWORD wr;
-            bool res = WriteFile(hPipeParent[num_chld], &ch, 1, &wr, NULL);
+            bool res = WriteFile(to_out, &ch, 1, &wr, NULL);
             if (!res)
             {
                 int err = GetLastError();
@@ -281,7 +266,7 @@ int main_proc(const char* name_proc)
                 break;
             }
 
-            res = ReadFile(hPipeParent[num_chld], &ch, sizeof(ch), &wr, NULL);
+            res = ReadFile(from_in, &ch, sizeof(ch), &wr, NULL);
             if (!res || wr == 0)
             {
                 int err = GetLastError();
@@ -289,12 +274,14 @@ int main_proc(const char* name_proc)
                 break;
             }
 
-            if (ch == num_chld)
+            if (ch != 0x02)
             {
-                mtx_balancing.lock();
-                ++numConn[num_chld];
-                mtx_balancing.unlock();
+                mprint_err("<%s:%d>  Error ch = 0x%hhx\n", __func__, __LINE__, ch);
             }
+
+            mtx_balancing.lock();
+            --numConn;
+            mtx_balancing.unlock();
         }
     }
 
@@ -302,7 +289,7 @@ int main_proc(const char* name_proc)
     {
         DWORD wr;
         unsigned char ch = 0x80;
-        bool res = WriteFile(hPipeParent[i], &ch, 1, &wr, NULL);
+        bool res = WriteFile(to_out, &ch, 1, &wr, NULL);
         if (!res)
         {
             int err = GetLastError();
@@ -310,30 +297,31 @@ int main_proc(const char* name_proc)
             break;
         }
 
-        res = ReadFile(hPipeParent[i], &ch, sizeof(ch), &wr, NULL);
+        res = ReadFile(from_in, &ch, sizeof(ch), &wr, NULL);
         if (!res || wr == 0)
         {
             int err = GetLastError();
             mprint_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
             break;
         }
-
-        CloseHandle(hPipeParent[i]);
     }
 
-    CloseHandle(close_in);
+    CloseHandle(ready_in);
+    CloseHandle(to_out);
+    CloseHandle(from_in);
+
     ReadPipe.join();
 
     return 0;
 }
 //======================================================================
-void read_from_pipe(HANDLE close_in)
+void read_from_pipe(HANDLE ready_in)
 {
     while (1)
     {
         DWORD rd;
         unsigned char ch;
-        bool res = ReadFile(close_in, &ch, 1, &rd, NULL);
+        bool res = ReadFile(ready_in, &ch, 1, &rd, NULL);
         if (!res || rd == 0)
         {
             DWORD err = GetLastError();
@@ -346,11 +334,12 @@ void read_from_pipe(HANDLE close_in)
             mprint_err("<%s:%d> ch=%d\n", __func__, __LINE__, (int)ch);
             break;
         }
-        mtx_balancing.lock();
-        --numConn[ch];
-        mtx_balancing.unlock();
+    mtx_balancing.lock();
+        ++numConn;
+    mtx_balancing.unlock();
+        cond_wait.notify_one();
     }
-    CloseHandle(close_in);
+    CloseHandle(ready_in);
     mprint_err("<%s:%d> Exit thread: read_from_pipe\n", __func__, __LINE__);
 }
 

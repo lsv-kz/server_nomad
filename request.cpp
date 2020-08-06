@@ -115,7 +115,7 @@ void get_request(RequestManager* ReqMan)
             // "req" may be free !!!
             if (ret == 1)
             {
-                int ret = ReqMan->end_req(&num_thr, &num_req);
+                int ret = ReqMan->end_thr(&num_thr, &num_req);
                 if (ret == EXIT_THR)
                     return;
                 else
@@ -144,9 +144,9 @@ void get_request(RequestManager* ReqMan)
                 req->connKeepAlive = 0;
         }
 
-        ReqMan->close_response(req);
+        ReqMan->end_response(req);
 
-        int ret = ReqMan->end_req(&num_thr, &num_req);
+        int ret = ReqMan->end_thr(&num_thr, &num_req);
         if (ret)
         {
             return;

@@ -4,18 +4,12 @@ using namespace std;
 
 Connect* create_req(RequestManager* ReqMan);
 //======================================================================
-RequestManager::RequestManager(int n, HANDLE pipe_out)
+RequestManager::RequestManager(int n)
 {
     list_begin = list_end = NULL;
     len_qu = stop_manager = all_thr = 0;
     count_thr = count_conn = num_wait_thr = 0;
     numChld = n;
-    hClose_out = pipe_out;
-}
-//----------------------------------------------------------------------
-RequestManager::~RequestManager()
-{
-    ;
 }
 //----------------------------------------------------------------------
 int RequestManager::get_num_chld(void)
@@ -58,7 +52,7 @@ unique_lock<mutex> lk(mtx_thr);
     }
 }
 //----------------------------------------------------------------------
-void RequestManager::timedwait_close_req(void)
+void RequestManager::timedwait_close_conn(void)
 {
 unique_lock<mutex> lk(mtx_thr);
     cond_close_conn.wait_for(lk, chrono::milliseconds(1000 * conf->TimeoutThreadCond));
@@ -82,8 +76,9 @@ mtx_thr.lock();
         ++count_conn;
     ret = ++len_qu;
 mtx_thr.unlock();
+
     cond_push.notify_one();
-    cond_new_thr.notify_one();
+
     return ret;
 }
 //----------------------------------------------------------------------
@@ -107,11 +102,16 @@ unique_lock<mutex> lk(mtx_thr);
         list_begin = list_end = NULL;
 
     --len_qu;
+    if (num_wait_thr == 0)
+    {
+        need_create_thr = 1;
+        cond_new_thr.notify_one();
+    }
 
     return req;
 }
 //----------------------------------------------------------------------
-int RequestManager::end_req(int* nthr, int* nreq)
+int RequestManager::end_thr(int* nthr, int* nreq)
 {
     int ret = 0;
  mtx_thr.lock();
@@ -135,9 +135,9 @@ void RequestManager::close_manager()
     cond_new_thr.notify_one();
 }
 //----------------------------------------------------------------------
-void RequestManager::close_response(Connect* req)
+void RequestManager::end_response(Connect* req)
 {
-    if (req->connKeepAlive == 0) // || req->err < 0)
+    if ((req->connKeepAlive == 0)  || req->err < 0)
     {
         //   if (req->err != -1)
         print_log(req);
@@ -149,14 +149,6 @@ void RequestManager::close_response(Connect* req)
         --count_conn;
      mtx_thr.unlock();
         cond_close_conn.notify_all();
-        unsigned char ch = (unsigned char)numChld;
-        DWORD rd;
-        bool res = WriteFile(hClose_out, &ch, 1, &rd, NULL);
-        if (!res)
-        {
-            PrintError(__func__, __LINE__, "Error WriteFile()");
-            exit(1);
-        }
     }
     else
     {
@@ -168,13 +160,32 @@ void RequestManager::close_response(Connect* req)
 //----------------------------------------------------------------------
 int RequestManager::wait_create_thr(int* n)
 {
-unique_lock<mutex> lk(mtx_thr);
-    while (((count_thr >= conf->MaxThreads) || num_wait_thr || (len_qu <= 6)) && !stop_manager)
+    while (1)
     {
-        cond_new_thr.wait(lk);
-    }
+        unique_lock<mutex> lk(mtx_thr);
+        while (((need_create_thr == 0) || (num_wait_thr > 0)) && !stop_manager)
+        {
+            cond_new_thr.wait(lk);
+        }
 
-    *n = count_thr;
+        if (stop_manager)
+            return num_wait_thr;
+
+        while ((count_thr >= conf->MaxThreads) && !stop_manager)
+        {
+            cond_exit_thr.wait(lk);
+        }
+
+        if (stop_manager)
+            return num_wait_thr;
+
+        if ((need_create_thr > 0) && (num_wait_thr <= 0))
+        {
+            need_create_thr = 0;
+            *n = count_thr;
+            break;
+        }
+    }
 
     return stop_manager;
 }
@@ -217,7 +228,7 @@ void thread_req_manager(int numProc, RequestManager * ReqMan)
 //======================================================================
 SOCKET Connect::serverSocket;
 //======================================================================
-void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_out)
+void child_proc(SOCKET sockServer, int numChld, HANDLE hIn, HANDLE hOut, HANDLE hReady_out)
 {
     int n;
     int allNumThr = 0;
@@ -240,7 +251,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
 
     Connect::serverSocket = sockServer;
     //------------------------------------------------------------------
-    ReqMan = new(nothrow) RequestManager(numChld, hClose_out);
+    ReqMan = new(nothrow) RequestManager(numChld);
     if (!ReqMan)
     {
         print_err("<%s:%d> *********** Exit child %d ***********\n", __func__, __LINE__, numChld);
@@ -297,19 +308,28 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         
         ReqMan->check_num_conn();
 
+        ch = (unsigned char)numChld;
         DWORD rd;
-        bool res;
-        res = ReadFile(hParent, &ch, 1, &rd, NULL);
+        bool res = WriteFile(hReady_out, &ch, 1, &rd, NULL);
+        if (!res)
+        {
+            PrintError(__func__, __LINE__, "Error WriteFile()");
+            print_err("%d<%s:%d> Error WriteFile\n", numChld, __func__, __LINE__);
+            break;
+        }
+
+        res = ReadFile(hIn, &ch, 1, &rd, NULL);
         if (!res)
         {
             PrintError(__func__, __LINE__, "Error ReadFile()");
             break;
         }
 
-        if (ch != (unsigned char)numChld)
+        if (ch != 1)
         {
-            WriteFile(hParent, &ch, 1, &rd, NULL);
-            print_err("%d<%s:%d> [ch != numChld] ch=%d\n", numChld, __func__, __LINE__, (int)ch);
+            print_err("%d<%s:%d> [ch != 1] ch=0x%x\n", numChld, __func__, __LINE__, (int)ch);
+            ch = 0x80;
+            WriteFile(hOut, &ch, 1, &rd, NULL);
             break;
         }
 
@@ -319,26 +339,28 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         {
             int err = ErrorStrSock(__func__, __LINE__, "Error accept()");
             ch = 0x80;
-            res = WriteFile(hParent, &ch, 1, &rd, NULL);
+            res = WriteFile(hOut, &ch, 1, &rd, NULL);
             if (!res)
             {
                 PrintError(__func__, __LINE__, "Error WriteFile()");
                 break;
             }
 
-            print_err("%d<%s:%d> Error accept(): %d\n", numChld, __func__, __LINE__, err);
             if (err == WSAEMFILE)
             {
-                ReqMan->timedwait_close_req();
+                print_err("%d<%s:%d> Error accept(): WSAEMFILE\n", numChld, __func__, __LINE__);
+                ReqMan->timedwait_close_conn();
                 continue;
             }
             else
             {
+                print_err("%d<%s:%d> Error accept(): %d\n", numChld, __func__, __LINE__, err);
                 break;
             }
         }
 
-        res = WriteFile(hParent, &ch, 1, &rd, NULL);
+        ch = 2;
+        res = WriteFile(hOut, &ch, 1, &rd, NULL);
         if (!res)
         {
             PrintError(__func__, __LINE__, "Error WriteFile()");
@@ -372,6 +394,9 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         ReqMan->push_req(req, 1);
     }
 
+    ReqMan->close_manager();
+    thrReqMan.join();
+
     int i = 0;
     n = ReqMan->get_num_thr();
     print_err("%d<%s:%d>  numThr=%d; allConn=%u\n", numChld,
@@ -389,11 +414,13 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
         ++i;
     }
 
-    ReqMan->close_manager();
-    thrReqMan.join();
+    
     close_queue();
     SendFile.join();
-    CloseHandle(hParent);
+
+    CloseHandle(hIn);
+    CloseHandle(hOut);
+    CloseHandle(hReady_out);
 
     print_err("%d<%s:%d> *** Exit  ***\n", numChld, __func__, __LINE__);
     delete ReqMan;
@@ -403,16 +430,11 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hParent, HANDLE hClose_ou
 Connect* create_req(RequestManager * ReqMan)
 {
     Connect* req = NULL;
-    while (1)
+
+    req = new(nothrow) Connect;
+    if (!req)
     {
-        req = new(nothrow) Connect;
-        if (!req)
-        {
-            print_err("%d<%s:%d> Error malloc(): errno=%d\n", ReqMan->get_num_chld(), __func__, __LINE__, errno);
-            ReqMan->timedwait_close_req();
-            continue;
-        }
-        break;
+        print_err("%d<%s:%d> Error malloc()\n", ReqMan->get_num_chld(), __func__, __LINE__);
     }
     return req;
 }

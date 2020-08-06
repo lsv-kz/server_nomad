@@ -1,12 +1,19 @@
 #include "main.h"
-
+// list, poll
+// POLLERR=0x1, POLLHUP=0x2, POLLNVAL=0x4, POLLPRI=0x400, POLLRDBAND=0x200
+// POLLRDNORM=0x100, POLLWRNORM=0x10, POLLIN=0x300, POLLOUT=0x10
+// 0x13, 0x2, 0x12
 using namespace std;
 
-static Connect* list_start = NULL, * list_end = NULL;
+static Connect* list_start = NULL;
+static Connect* list_end = NULL;
+
+static Connect* list_new_start = NULL;
+static Connect* list_new_end = NULL;
 
 static int max_resp = 0;
 
-fd_set wrfds;
+struct pollfd* fdwr;
 
 mutex mtx_send;
 condition_variable cond_add;
@@ -45,10 +52,8 @@ int send_entity(Connect* req, char* rd_buf, int size_buf)
     return ret;
 }
 //======================================================================
-void del_from_list(Connect* r, RequestManager* ReqMan)
+void del_from_list(Connect* r, RequestManager * ReqMan)
 {
-mtx_send.lock();
-
     if (r->prev && r->next)
     {
         r->prev->next = r->next;
@@ -68,16 +73,30 @@ mtx_send.lock();
     {
         list_start = list_end = NULL;
     }
-mtx_send.unlock();
+
     _close(r->resp.fd);
-    ReqMan->close_response(r);
+    ReqMan->end_response(r);
 }
 //======================================================================
-int set_list(RequestManager* ReqMan)
+int set_list(RequestManager * ReqMan)
 {
+    mtx_send.lock();
+    if (list_new_start)
+    {
+        if (list_end)
+            list_end->next = list_new_start;
+        else
+            list_start = list_new_start;
+
+        list_new_start->prev = list_end;
+        list_end = list_new_end;
+        list_new_start = list_new_end = NULL;
+    }
+    mtx_send.unlock();
+
     int i = 0;
     time_t t = time(NULL);
-    Connect* tmp = list_start, *next;
+    Connect* tmp = list_start, * next;
 
     for (; tmp; tmp = next)
     {
@@ -96,7 +115,9 @@ int set_list(RequestManager* ReqMan)
             if (tmp->time_write == 0)
                 tmp->time_write = t;
 
-            FD_SET(tmp->clientSocket, &wrfds);
+            tmp->index_fdwr = i;
+            fdwr[i].fd = tmp->clientSocket;
+            fdwr[i].events = POLLWRNORM;
             ++i;
         }
 
@@ -107,10 +128,10 @@ int set_list(RequestManager* ReqMan)
     return i;
 }
 //======================================================================
-void delete_timeout_requests(int n, RequestManager* ReqMan)
+void delete_timeout_requests(int n, RequestManager * ReqMan)
 {
     time_t t = time(NULL);
-    Connect* tmp = list_start, *next;
+    Connect* tmp = list_start, * next;
 
     for (; tmp && (n > 0); tmp = next)
     {
@@ -123,7 +144,7 @@ void delete_timeout_requests(int n, RequestManager* ReqMan)
             tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
             del_from_list(tmp, ReqMan);
         }
-        
+
         --n;
     }
 }
@@ -131,28 +152,29 @@ void delete_timeout_requests(int n, RequestManager* ReqMan)
 void send_files(RequestManager * ReqMan)
 {
     int i, ret = 0;
+    int timeout = 1;
     int size_buf = conf->SOCK_BUFSIZE;
-    struct timeval tv;
-    int num_chld = ReqMan->get_num_chld();
     char* rd_buf;
+    int num_chld = ReqMan->get_num_chld();
 
-    max_resp = FD_SETSIZE;
+    max_resp = conf->MaxRequests; // SizeQueue 
 
-    rd_buf = new(nothrow) char [size_buf];
-    if (!rd_buf)
+    fdwr = new(nothrow) struct pollfd[max_resp];
+    rd_buf = new(nothrow) char[size_buf];
+    if (!rd_buf || !fdwr)
     {
         print_err("%d<%s:%d> Error malloc()\n", num_chld, __func__, __LINE__);
         exit(1);
     }
 
-    FD_ZERO(&wrfds);
+    memset(fdwr, 0, sizeof(struct pollfd) * max_resp);
 
     i = 0;
     while (1)
     {
         {
             unique_lock<mutex> lk(mtx_send);
-            while ((list_start == NULL) && (!close_thr))
+            while ((list_start == NULL) && (list_new_start == NULL) && (!close_thr))
             {
                 count_resp = 0;
                 cond_add.wait(lk);
@@ -160,35 +182,41 @@ void send_files(RequestManager * ReqMan)
 
             if (close_thr)
                 break;
-            count_resp = set_list(ReqMan);
-            if (count_resp == 0)
-                continue;
         }
 
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
-        ret = select(0, NULL, &wrfds, NULL, &tv);
+        count_resp = set_list(ReqMan);
+        if (count_resp == 0)
+            continue;
+
+        ret = WSAPoll(fdwr, count_resp, timeout * 1000);
         if (ret == SOCKET_ERROR)
         {
-            DWORD err = WSAGetLastError();
-            print_err("%d<%s:%d> Error select(): %d, num_select=%d\n", num_chld, __func__, __LINE__, err, count_resp);
-            exit(1); // ?
+            print_err("%d<%s:%d> Error WSAPoll(): %d\n", num_chld, __func__, __LINE__, WSAGetLastError());
+            Connect* tmp = list_start, * next;
+            for (i = 0; (i < count_resp) && tmp; tmp = next)
+            {
+                next = tmp->next;
+                print_err("<%s:%d> %d, %d, i=%d\n", __func__, __LINE__, tmp->clientSocket, fdwr[tmp->index_fdwr].fd, tmp->index_fdwr);
+                ++i;
+            }
+
+            exit(1);
         }
         else if (ret == 0)
         {
+            //           print_err("%d<%s:%d> timeout\n", num_chld, __func__, __LINE__);
             delete_timeout_requests(count_resp, ReqMan);
             continue;
         }
-        
+
         i = 0;
-        Connect *tmp = list_start, *next;
-        while ((i < count_resp) && (ret > 0) && tmp)
+        Connect* tmp = list_start, * next;
+        for (; (i < count_resp) && (ret > 0) && tmp; tmp = next)
         {
             next = tmp->next;
-            if (FD_ISSET(tmp->clientSocket, &wrfds))
+            if (fdwr[tmp->index_fdwr].revents == POLLWRNORM)
             {
                 --ret;
-                FD_CLR(tmp->clientSocket, &wrfds);
                 int wr = send_entity(tmp, rd_buf, size_buf);
                 if (wr == 0)
                 {
@@ -206,33 +234,43 @@ void send_files(RequestManager * ReqMan)
                 {
                     tmp->time_write = 0;
                 }
-          //      else; // (wr < -1)
             }
-            tmp = next;
+            else if (fdwr[tmp->index_fdwr].revents != 0)
+            {
+                --ret;
+                print_err("%d<%s:%d> revents=0x%x\n", num_chld, __func__, __LINE__, fdwr[tmp->index_fdwr].revents);
+                tmp->err = -1;
+                tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
+                tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Connection reset by peer";
+                del_from_list(tmp, ReqMan);
+            }
 
             ++i;
         }
     }
-
-    delete [] rd_buf;
+    print_err("%d<%s:%d> ***** \n", num_chld, __func__, __LINE__);
+    delete[] rd_buf;
+    delete[] fdwr;
 }
 //======================================================================
 void push_resp_queue(Connect* req)
 {
-    req->free_resp_headers();
     req->free_range();
-mtx_send.lock();
+    req->free_resp_headers();
+    mtx_send.lock();
     req->time_write = 0;
+
     req->next = NULL;
-    req->prev = list_end;
-    if (list_start)
+    req->prev = list_new_end;
+    if (list_new_start)
     {
-        list_end->next = req;
-        list_end = req;
+        list_new_end->next = req;
+        list_new_end = req;
     }
     else
-        list_start = list_end = req;
-mtx_send.unlock();
+        list_new_start = list_new_end = req;
+
+    mtx_send.unlock();
     cond_add.notify_one();
 }
 //======================================================================

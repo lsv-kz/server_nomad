@@ -1,6 +1,6 @@
 #ifndef SERVER_H_
 #define SERVER_H_
-#define _WIN32_WINNT  0x0501
+#define _WIN32_WINNT  0x0601
 
 #include <iostream>
 #include <fstream>
@@ -30,8 +30,6 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <time.h>
-
-//#define FD_SETSIZE     128
 
 #include <Winsock2.h>
 #include <winsock.h>
@@ -98,6 +96,7 @@ struct Config
     int ListenBacklog = 128;
 
     int MaxRequests = 256;
+    int SizeQueue = 256;
 
     char KeepAlive = 'y';
     int TimeoutKeepAlive = 5;
@@ -138,6 +137,7 @@ public:
     SOCKET    clientSocket;
     int       err;
     time_t    time_write;
+    int       index_fdwr;
 
     int       num_write;
 
@@ -269,7 +269,7 @@ private:
     std::condition_variable cond_push, cond_pop;
     std::condition_variable cond_close_conn, cond_new_thr, cond_exit_thr;
 
-    int count_conn, num_wait_thr, len_qu;
+    int count_conn, num_wait_thr, len_qu, need_create_thr;
     int numChld, count_thr, stop_manager;
 
     unsigned long all_thr;
@@ -277,8 +277,7 @@ private:
 
 public:
     RequestManager(const RequestManager&) = delete;
-    RequestManager(int, HANDLE);
-    ~RequestManager();
+    RequestManager(int);
     //-------------------------------
     int get_num_chld(void);
     int get_num_thr(void);
@@ -286,13 +285,13 @@ public:
     int exit_thr();
     int check_num_conn();
     void wait_exit_thr(int n);
-    void timedwait_close_req(void);
+    void timedwait_close_conn(void);
     int push_req(Connect* req, int i);
     Connect* pop_req();
-    int end_req(int* nthr, int* nconn);
+    int end_thr(int* nthr, int* nconn);
     int wait_create_thr(int* n);
     void close_manager();
-    void close_response(Connect*);
+    void end_response(Connect*);
 };
 
 extern HANDLE hLogErrDup;
