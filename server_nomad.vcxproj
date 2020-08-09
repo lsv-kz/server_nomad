@@ -145,7 +145,7 @@
     <ClCompile Include="rd_wr.cpp" />
     <ClCompile Include="request.cpp" />
     <ClCompile Include="response.cpp" />
-    <ClCompile Include="send_file.cpp" />
+    <ClCompile Include="send_files.cpp" />
     <ClCompile Include="threads_manager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

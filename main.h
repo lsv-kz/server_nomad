@@ -266,15 +266,13 @@ private:
 
     std::mutex  mtx_thr;
 
-    std::condition_variable cond_push, cond_pop;
+    std::condition_variable cond_push;
     std::condition_variable cond_close_conn, cond_new_thr, cond_exit_thr;
 
-    int count_conn, num_wait_thr, len_qu, need_create_thr;
-    int numChld, count_thr, stop_manager;
+    int num_wait_thr, len_qu, need_create_thr;
+    int numChld, count_conn, count_thr, stop_manager;
 
     unsigned long all_thr;
-    HANDLE hClose_out;
-
 public:
     RequestManager(const RequestManager&) = delete;
     RequestManager(int);
