@@ -78,10 +78,7 @@ int response(RequestManager* ReqMan, Connect* req)
         string sTmp;
         utf16_to_mbs(sTmp, wPath.c_str());
         print_err("%d<%s:%d> Error _wstati64(%s): %d\n", numChld, __func__, __LINE__, sTmp.c_str(), errno);
-        if (errno == EACCES)
-            return -RS403;
-        else
-            return -RS404;
+        return -RS404;
     }
     else
     {
