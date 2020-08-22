@@ -58,51 +58,14 @@ void create_logfiles(const wchar_t* log_dir, HANDLE* h, HANDLE* hErr)
     *hErr = hLogErr;
 }
 //======================================================================
-void mprint_err(const char* format, ...)
-{
-    va_list ap;
-    char buf[256 * 2];
-
-    va_start(ap, format);
-    vsnprintf(buf, 256 * 2, format, ap);
-    va_end(ap);
-
-    stringstream ss;
-    ss << "[" << get_time() << "] - " << buf;
-
-    DWORD wrr;
-    BOOL res = WriteFile(hLogErr, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
-    if (!res)
-    {
-        DWORD err = GetLastError();
-        printf("<%s:%d>  Error WriteFile(): %lu\n", __func__, __LINE__, err);
-        exit(1);
-    }
-}
-//======================================================================
 int  nChld;
 static HANDLE hChildLog, hChildLogErr;
 mutex mtxLog;
 //======================================================================
-HANDLE open_logfiles(HANDLE h, HANDLE hErr)
+void open_logfiles(HANDLE h, HANDLE hErr)
 {
-    hChildLog = h;
-    hChildLogErr = hErr;
-    HANDLE hLogErrDup;
-    BOOL res = DuplicateHandle(
-        GetCurrentProcess(),
-        hChildLogErr,
-        GetCurrentProcess(),
-        &hLogErrDup,
-        0,
-        TRUE,
-        DUPLICATE_SAME_ACCESS);
-    if (!res)
-    {
-        exit(1);
-    }
-
-    return hLogErrDup;
+    hLog = h;
+    hLogErr = hErr;
 }
 //======================================================================
 void print_err(const char* format, ...)
@@ -119,7 +82,7 @@ void print_err(const char* format, ...)
 
     lock_guard<mutex> l(mtxLog);
     DWORD wrr;
-    BOOL res = WriteFile(hChildLogErr, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
+    BOOL res = WriteFile(hLogErr, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
     if (!res)
     {
         exit(1);
@@ -144,10 +107,14 @@ void print_log(Connect* req)
         << "\"\n";
     lock_guard<mutex> l(mtxLog);
     DWORD wrr;
-    BOOL res = WriteFile(hChildLog, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
+    BOOL res = WriteFile(hLog, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
     if (!res)
     {
         exit(1);
     }
 }
-
+//======================================================================
+HANDLE GetHandleLogErr()
+{
+    return hLogErr;
+}

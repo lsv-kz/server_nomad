@@ -2,8 +2,6 @@
 
 using namespace std;
 
-HANDLE hLogErrDup;
-
 static SOCKET sockServer = -1;
 static bool closeServer = false;
 int read_conf_file(const char* path_conf);
@@ -44,7 +42,7 @@ int main(int argc, char* argv[])
             ss >> hChildLog;
             ss >> hChildLogErr;
 
-            hLogErrDup = open_logfiles(hChildLog, hChildLogErr);
+            open_logfiles(hChildLog, hChildLogErr);
 
             SECURITY_ATTRIBUTES saAttr;
             saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -70,7 +68,6 @@ int main(int argc, char* argv[])
 //======================================================================
 void create_logfiles(const wchar_t* log_dir, HANDLE* h, HANDLE* hErr);
 void read_from_pipe(HANDLE);
-void mprint_err(const char* format, ...);
 
 mutex mtx_balancing;
 condition_variable cond_wait;
@@ -198,7 +195,7 @@ int main_proc(const char* name_proc)
         if (!bSuccess)
         {
             DWORD err = GetLastError();
-            mprint_err("<%s:%d> Error CreateProcessA(): %s\n error=%lu\n", __func__, __LINE__, ss.str().c_str(), err);
+            print_err("<%s:%d> Error CreateProcessA(): %s\n error=%lu\n", __func__, __LINE__, ss.str().c_str(), err);
             exit(1);
         }
 
@@ -225,7 +222,7 @@ int main_proc(const char* name_proc)
     }
     catch (...)
     {
-        mprint_err("%d<%s:%d> Error create thread(read_from_pipe)\n", numChld, __func__, __LINE__);
+        print_err("%d<%s:%d> Error create thread(read_from_pipe)\n", numChld, __func__, __LINE__);
         exit(1);
     }
 
@@ -248,9 +245,9 @@ int main_proc(const char* name_proc)
         if ((ret == SOCKET_ERROR) || closeServer)
         {
             if (closeServer)
-                mprint_err("<%s:%d> closeServer=%u\n", __func__, __LINE__, closeServer);
+                print_err("<%s:%d> closeServer=%u\n", __func__, __LINE__, closeServer);
             else
-                mprint_err("<%s:%d> Error select(): %d", __func__, __LINE__, WSAGetLastError());
+                print_err("<%s:%d> Error select(): %d", __func__, __LINE__, WSAGetLastError());
             break;
         }
 
@@ -262,7 +259,7 @@ int main_proc(const char* name_proc)
             if (!res)
             {
                 int err = GetLastError();
-                mprint_err("<%s:%d> Error WriteFile(): %d\n", __func__, __LINE__, err);
+                print_err("<%s:%d> Error WriteFile(): %d\n", __func__, __LINE__, err);
                 break;
             }
 
@@ -270,13 +267,13 @@ int main_proc(const char* name_proc)
             if (!res || wr == 0)
             {
                 int err = GetLastError();
-                mprint_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
+                print_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
                 break;
             }
 
             if (ch != 0x02)
             {
-                mprint_err("<%s:%d>  Error ch = 0x%hhx\n", __func__, __LINE__, ch);
+                print_err("<%s:%d>  Error ch = 0x%hhx\n", __func__, __LINE__, ch);
             }
 
             mtx_balancing.lock();
@@ -293,7 +290,7 @@ int main_proc(const char* name_proc)
         if (!res)
         {
             int err = GetLastError();
-            mprint_err("<%s:%d> Error WriteFile(): %d\n", __func__, __LINE__, err);
+            print_err("<%s:%d> Error WriteFile(): %d\n", __func__, __LINE__, err);
             break;
         }
 
@@ -301,7 +298,7 @@ int main_proc(const char* name_proc)
         if (!res || wr == 0)
         {
             int err = GetLastError();
-            mprint_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
+            print_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
             break;
         }
     }
@@ -325,13 +322,13 @@ void read_from_pipe(HANDLE ready_in)
         if (!res || rd == 0)
         {
             DWORD err = GetLastError();
-            mprint_err("<%s:%d> Error ReadFile(): %lu\n", __func__, __LINE__, err);
+            print_err("<%s:%d> Error ReadFile(): %lu\n", __func__, __LINE__, err);
             break;
         }
 
         if (ch >= conf->NumChld)
         {
-            mprint_err("<%s:%d> ch=%d\n", __func__, __LINE__, (int)ch);
+            print_err("<%s:%d> ch=%d\n", __func__, __LINE__, (int)ch);
             break;
         }
     mtx_balancing.lock();
@@ -340,6 +337,6 @@ void read_from_pipe(HANDLE ready_in)
         cond_wait.notify_one();
     }
     CloseHandle(ready_in);
-    mprint_err("<%s:%d> Exit thread: read_from_pipe\n", __func__, __LINE__);
+    print_err("<%s:%d> Exit thread: read_from_pipe\n", __func__, __LINE__);
 }
 

@@ -324,7 +324,7 @@ int cgi(Connect* req)
     si.cb = sizeof(STARTUPINFO);
     si.hStdOutput = childPipe;
     si.hStdInput = childPipe;
-    si.hStdError = hLogErrDup;
+    si.hStdError = GetHandleLogErr();
     si.dwFlags |= STARTF_USESTDHANDLES;
 
     bSuccess = CreateProcessW(NULL, (wchar_t*)commandLine.c_str(), NULL, NULL, TRUE, 0, env.get(), NULL, &si, &pi);

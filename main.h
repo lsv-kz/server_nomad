@@ -292,7 +292,6 @@ public:
     void end_response(Connect*);
 };
 
-extern HANDLE hLogErrDup;
 //======================================================================
 int in4_aton(const char* host, struct in_addr* addr);
 SOCKET create_server_socket(const Config* conf);
@@ -351,9 +350,10 @@ int send_file_2(SOCKET sock, int fd_in, char* buf, int size, long long offset);
 int read_line_sock(SOCKET sock, char* buf, int size, int timeout);
 int read_headers(Connect* req, int timeout1, int timeout2);
 //----------------------------------------------------------------------
-HANDLE open_logfiles(HANDLE, HANDLE);
+void open_logfiles(HANDLE, HANDLE);
 void print_err(const char* format, ...);
 void print_log(Connect* req);
+HANDLE GetHandleLogErr();
 //----------------------------------------------------------------------
 void send_files(RequestManager* ReqMan);
 void push_resp_queue(Connect* r);

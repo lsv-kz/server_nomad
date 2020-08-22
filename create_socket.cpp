@@ -1,7 +1,6 @@
 #include "main.h"
 
 int sock_opt = 1;
-void mprint_err(const char* format, ...);
 //======================================================================
 int in4_aton(const char* host, struct in_addr* addr)
 {
@@ -33,7 +32,7 @@ SOCKET create_server_socket(const Config * conf)
     port = (unsigned short)atol(conf->servPort.c_str());
     if (WSAStartup(MAKEWORD(2, 2), &wsaData))
     {
-        mprint_err("<%s:%d> Error WSAStartup(): %d\n", __func__, __LINE__, WSAGetLastError());
+        print_err("<%s:%d> Error WSAStartup(): %d\n", __func__, __LINE__, WSAGetLastError());
         system("PAUSE");
         return INVALID_SOCKET;
     }
@@ -44,7 +43,7 @@ SOCKET create_server_socket(const Config * conf)
     //	sin.sin_addr.s_addr = INADDR_ANY;
     if (in4_aton(conf->host.c_str(), &(sin.sin_addr)) != 4)
     {
-        mprint_err("<%s:%d> Error in4_aton()=%d\n", __func__, __LINE__);
+        print_err("<%s:%d> Error in4_aton()=%d\n", __func__, __LINE__);
         return INVALID_SOCKET;
     }
     sin.sin_port = htons(port);
@@ -52,7 +51,7 @@ SOCKET create_server_socket(const Config * conf)
     SOCKET sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd == INVALID_SOCKET)
     {
-        mprint_err("<%s:%d> Error socket(): %d\n", __func__, __LINE__, WSAGetLastError());
+        print_err("<%s:%d> Error socket(): %d\n", __func__, __LINE__, WSAGetLastError());
         WSACleanup();
         system("PAUSE");
         return INVALID_SOCKET;
@@ -60,7 +59,7 @@ SOCKET create_server_socket(const Config * conf)
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)& sock_opt, iOptLen) == SOCKET_ERROR)
     {
-        mprint_err("<%s:%d> Error setsockopt(): %d\n", __func__, __LINE__, WSAGetLastError());
+        print_err("<%s:%d> Error setsockopt(): %d\n", __func__, __LINE__, WSAGetLastError());
         WSACleanup();
         system("PAUSE");
         return INVALID_SOCKET;
@@ -68,7 +67,7 @@ SOCKET create_server_socket(const Config * conf)
 
     if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char*)& sock_opt, sizeof(sock_opt)) == SOCKET_ERROR)
     {
-        mprint_err("<%s:%d> Error setsockopt(): %d\n", __func__, __LINE__, WSAGetLastError());
+        print_err("<%s:%d> Error setsockopt(): %d\n", __func__, __LINE__, WSAGetLastError());
         WSACleanup();
         system("PAUSE");
         return INVALID_SOCKET;
@@ -82,7 +81,7 @@ SOCKET create_server_socket(const Config * conf)
     // If iMode != 0, non-blocking mode is enabled.
     if (ioctlsocket(sockfd, FIONBIO, &iMode) == SOCKET_ERROR)
     {
-        mprint_err("<%s:%d> Error ioctlsocket(): %d\n", __func__, __LINE__, WSAGetLastError());
+        print_err("<%s:%d> Error ioctlsocket(): %d\n", __func__, __LINE__, WSAGetLastError());
         WSACleanup();
         system("PAUSE");
         return INVALID_SOCKET;
@@ -91,7 +90,7 @@ SOCKET create_server_socket(const Config * conf)
     sockbuf = conf->SOCK_BUFSIZE;
     if (setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char*)& sockbuf, sizeof(sockbuf)) == SOCKET_ERROR)
     {
-        mprint_err("<%s:%d> Error setsockopt(): %d\n", __func__, __LINE__, WSAGetLastError());
+        print_err("<%s:%d> Error setsockopt(): %d\n", __func__, __LINE__, WSAGetLastError());
         closesocket(sockfd);
         WSACleanup();
         return INVALID_SOCKET;
@@ -99,7 +98,7 @@ SOCKET create_server_socket(const Config * conf)
 
     if (bind(sockfd, (SOCKADDR*)(&sin), sizeof(sin)) == SOCKET_ERROR)
     {
-        mprint_err("<%s:%d> Error bind(): %d\n", __func__, __LINE__, WSAGetLastError());
+        print_err("<%s:%d> Error bind(): %d\n", __func__, __LINE__, WSAGetLastError());
         closesocket(sockfd);
         WSACleanup();
         system("PAUSE");
@@ -108,7 +107,7 @@ SOCKET create_server_socket(const Config * conf)
 
     if (listen(sockfd, conf->ListenBacklog) == SOCKET_ERROR)
     {
-        mprint_err("<%s:%d> Error listen(): %d\n", __func__, __LINE__, WSAGetLastError());
+        print_err("<%s:%d> Error listen(): %d\n", __func__, __LINE__, WSAGetLastError());
         closesocket(sockfd);
         WSACleanup();
         system("PAUSE");
