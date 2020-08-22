@@ -5,61 +5,36 @@ using namespace std;
 /*====================================================================*/
 int wait_read(SOCKET sock, int timeout)
 {
-    struct timeval tv;
-    fd_set readfds;
-    int ret;
+    WSAPOLLFD readfds;
+    readfds.fd = sock;
+    readfds.events = POLLIN;
+    int ret, tm;
 
-    FD_ZERO(&readfds);
-    FD_SET(sock, &readfds);
+    if (timeout == -1)
+        tm = -1;
+    else
+        tm = timeout * 1000;
 
-    tv.tv_sec = timeout;
-    tv.tv_usec = 0;
-
-    ret = select(0, &readfds, NULL, NULL, &tv);
+    ret = WSAPoll(&readfds, 1, tm);
     if (ret == SOCKET_ERROR)
     {
         ErrorStrSock(__func__, __LINE__, "Error select()");
         return -1;
     }
     else if (!ret)
-    {
         return -RS408;
-    }
 
-    if (FD_ISSET(sock, &readfds))
+    if (readfds.revents & POLLERR)
     {
-        return 1;
-    }
-    return -1;
-}
-//======================================================================
-int wait_write(SOCKET sock, int timeout)
-{
-    struct timeval tv;
-    fd_set writefds;
-    int ret;
-
-    FD_ZERO(&writefds);
-    FD_SET(sock, &writefds);
-
-    tv.tv_sec = timeout;
-    tv.tv_usec = 0;
-
-    ret = select(0, NULL, &writefds, NULL, &tv);
-    if (ret == SOCKET_ERROR)
-    {
-        ErrorStrSock(__func__, __LINE__, "Error select()");
+        print_err("<%s:%d> POLLERR fdrd.revents = 0x%02x\n", __func__, __LINE__, readfds.revents);
         return -1;
     }
-    else if (!ret)
-    {
-        return -timeout;
-    }
-
-    if (FD_ISSET(sock, &writefds))
-    {
+    else if (readfds.revents & POLLIN)
         return 1;
-    }
+    else if (readfds.revents & POLLHUP)
+        return 0;
+
+    print_err("<%s:%d> Error .revents = 0x%02x\n", __func__, __LINE__, readfds.revents);
     return -1;
 }
 //======================================================================
@@ -529,43 +504,42 @@ int check_req(Connect* req, char* s, char** p_newline, unsigned int* len, int* s
     return 0;
 }
 //======================================================================
-int read_headers_select(Connect* req, int timeout1, int timeout2)
+int read_headers(Connect* req, int timeout1, int timeout2)
 {
     int all_rd = 0, ret = -1;
     int startline = 0;
     unsigned int len_tail = 0;
     int len_buf = sizeof(req->bufReq);
     char* p, * p_newline;
-    struct timeval tv;
-    fd_set rdfds;
+    WSAPOLLFD rdfds;
     int timeout = timeout1;
+
+    req->resp.sLogTime = get_time();
 
     p = p_newline = req->bufReq;
 
-    FD_ZERO(&rdfds);
+    rdfds.fd = req->clientSocket;
+    rdfds.events = POLLRDNORM;
     while (1)
     {
-        FD_SET(req->clientSocket, &rdfds);
-        tv.tv_sec = timeout;
-        tv.tv_usec = 0;
-        ret = select(0, &rdfds, NULL, NULL, &tv);
+        ret = WSAPoll(&rdfds, 1, timeout);
         if (ret == SOCKET_ERROR)
         {
             ErrorStrSock(__func__, __LINE__, "Error select()");
-            break;
+            return -1;
         }
         else if (!ret)
         {
-            print_err("%d<%s:%d> Timeout=%d\n", req->numChld, __func__, __LINE__, timeout);
-            return -RS408;
+            return -1000;
         }
-        timeout = timeout2;
-
-        if (!FD_ISSET(req->clientSocket, &rdfds))
+        
+        if (rdfds.revents != POLLRDNORM)
         {
-            print_err("%d<%s:%d> FD_ISSET()=0\n", req->numChld, __func__, __LINE__);
+            print_err("%d<%s:%d> .revents != POLLIN: 0x%02x\n", req->numChld, __func__, __LINE__, rdfds.revents);
             return -1;
         }
+        
+        timeout = timeout2;
 
         ret = recv(req->clientSocket, p, len_buf - 1, 0);
         if (ret == SOCKET_ERROR)
@@ -597,24 +571,4 @@ int read_headers_select(Connect* req, int timeout1, int timeout2)
     }
 
     return ret;
-}
-//======================================================================
-int read_headers(Connect* req, int timeout1, int timeout2)
-{
-    int all_rd = 0;
-
-    req->resp.sLogTime = get_time();
-
-    all_rd = read_headers_select(req, timeout1, timeout2);
-    if (all_rd <= 0)
-    {
-        if (all_rd == -RS408)
-        {
-            return -1000;
-        }
-
-        return all_rd;
-    }
-
-    return all_rd;
 }

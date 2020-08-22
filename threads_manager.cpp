@@ -8,7 +8,7 @@ RequestManager::RequestManager(int n)
 {
     list_begin = list_end = NULL;
     len_qu = stop_manager = all_thr = 0;
-    count_thr = count_conn = num_wait_thr = 0;
+    count_thr = count_conn = num_wait_thr = need_create_thr = 0;
     numChld = n;
 }
 //----------------------------------------------------------------------
