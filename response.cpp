@@ -66,7 +66,7 @@ int response(RequestManager* ReqMan, Connect* req)
     }
     //-------------------------- get path ------------------------------
     wstring wPath;
-    wPath.reserve(conf->wRootDir.size() + req->wDecodeUri.size() + 16);
+    wPath.reserve(conf->wRootDir.size() + req->wDecodeUri.size() + 256);
     wPath += conf->wRootDir;
     wPath += req->wDecodeUri;
     if (wPath[wPath.size() - 1] == L'/')
@@ -126,36 +126,7 @@ int response(RequestManager* ReqMan, Connect* req)
         struct _stat st;
         if ((_wstat(wPath.c_str(), &st) == -1) || (conf->index_html != 'y'))
         {
-            errno = 0;
             wPath.resize(len);
-
-            if ((conf->usePHP != "n") && (conf->index_php == 'y'))
-            {
-                wPath += L"/index.php";
-                if (_wstat(wPath.c_str(), &st) == 0)
-                {
-                    wstring s = req->wDecodeUri;
-                    s += L"index.php";
-                    req->wScriptName = s.c_str();
-                    req->resp.scriptType = php_cgi;
-                    int ret = cgi(req);
-                    req->wScriptName = NULL;
-                    return ret;
-                }
-
-                wPath.resize(len);
-            }
-
-            if (conf->index_pl == 'y')
-            {
-                req->resp.scriptType = cgi_ex;
-                req->wScriptName = L"/cgi-bin/index.pl";
-                int ret = cgi(req);
-                req->wScriptName = NULL;
-                return ret;
-            }
-
-            wPath.reserve(wPath.size() + 256);
             return index_dir(ReqMan, req, wPath);
         }
     }

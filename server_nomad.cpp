@@ -50,7 +50,6 @@ int main(int argc, char* argv[])
     }
     else if  (argc == 1)
     {
-        cout << "<" << __LINE__ << "> Error argc=" << argc << "\n";
         printf(" LC_CTYPE: %s\n", setlocale(LC_CTYPE, ""));
         main_proc(argv[0]);
         exit(0);
