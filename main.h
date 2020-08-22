@@ -283,7 +283,6 @@ public:
     int exit_thr();
     int check_num_conn();
     void wait_exit_thr(int n);
-    void timedwait_close_conn(void);
     int push_req(Connect* req, int i);
     Connect* pop_req();
     int end_thr(int* nthr, int* nconn);

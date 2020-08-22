@@ -52,12 +52,6 @@ unique_lock<mutex> lk(mtx_thr);
     }
 }
 //----------------------------------------------------------------------
-void RequestManager::timedwait_close_conn(void)
-{
-unique_lock<mutex> lk(mtx_thr);
-    cond_close_conn.wait_for(lk, chrono::milliseconds(1000 * conf->TimeoutThreadCond));
-}
-//----------------------------------------------------------------------
 int RequestManager::push_req(Connect* req, int inc)
 {
     int ret;
@@ -228,7 +222,7 @@ void thread_req_manager(int numProc, RequestManager * ReqMan)
 //======================================================================
 SOCKET Connect::serverSocket;
 //======================================================================
-void child_proc(SOCKET sockServer, int numChld, HANDLE hIn, HANDLE hOut, HANDLE hReady_out)
+void child_proc(SOCKET sockServer, int numChld, HANDLE hExit_out)
 {
     int n;
     int allNumThr = 0;
@@ -302,54 +296,19 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hIn, HANDLE hOut, HANDLE 
 
     while (1)
     {
-        unsigned char ch;
         socklen_t addrSize;
         struct sockaddr_storage clientAddr;
-        
+
         ReqMan->check_num_conn();
-
-        ch = (unsigned char)numChld;
-        DWORD rd;
-        bool res = WriteFile(hReady_out, &ch, 1, &rd, NULL);
-        if (!res)
-        {
-            PrintError(__func__, __LINE__, "Error WriteFile()");
-            print_err("%d<%s:%d> Error WriteFile\n", numChld, __func__, __LINE__);
-            break;
-        }
-
-        res = ReadFile(hIn, &ch, 1, &rd, NULL);
-        if (!res)
-        {
-            PrintError(__func__, __LINE__, "Error ReadFile()");
-            break;
-        }
-
-        if (ch != 1)
-        {
-            print_err("%d<%s:%d> [ch != 1] ch=0x%x\n", numChld, __func__, __LINE__, (int)ch);
-            ch = 0x80;
-            WriteFile(hOut, &ch, 1, &rd, NULL);
-            break;
-        }
 
         addrSize = sizeof(struct sockaddr_storage);
         SOCKET clientSocket = accept(sockServer, (struct sockaddr*) & clientAddr, &addrSize);
         if (clientSocket == INVALID_SOCKET)
         {
             int err = ErrorStrSock(__func__, __LINE__, "Error accept()");
-            ch = 0x80;
-            res = WriteFile(hOut, &ch, 1, &rd, NULL);
-            if (!res)
-            {
-                PrintError(__func__, __LINE__, "Error WriteFile()");
-                break;
-            }
-
             if (err == WSAEMFILE)
             {
                 print_err("%d<%s:%d> Error accept(): WSAEMFILE\n", numChld, __func__, __LINE__);
-                ReqMan->timedwait_close_conn();
                 continue;
             }
             else
@@ -359,20 +318,18 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hIn, HANDLE hOut, HANDLE 
             }
         }
 
-        ch = 2;
-        res = WriteFile(hOut, &ch, 1, &rd, NULL);
-        if (!res)
-        {
-            PrintError(__func__, __LINE__, "Error WriteFile()");
-            break;
-        }
-
         Connect* req;
         req = create_req(ReqMan);
         if (!req)
         {
             closesocket(clientSocket);
             continue;
+        }
+
+        u_long iMode = 1;
+        if (ioctlsocket(clientSocket, FIONBIO, &iMode) == SOCKET_ERROR)
+        {
+            print_err("<%s:%d> Error ioctlsocket(): %d\n", __func__, __LINE__, WSAGetLastError());
         }
 
         req->numChld = numChld;
@@ -418,9 +375,14 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hIn, HANDLE hOut, HANDLE 
     close_queue();
     SendFile.join();
 
-    CloseHandle(hIn);
-    CloseHandle(hOut);
-    CloseHandle(hReady_out);
+    unsigned char ch = (unsigned char)numChld;
+    DWORD rd;
+    bool res = WriteFile(hExit_out, &ch, 1, &rd, NULL);
+    if (!res)
+    {
+        PrintError(__func__, __LINE__, "Error WriteFile()");
+    }
+    CloseHandle(hExit_out);
 
     print_err("%d<%s:%d> *** Exit  ***\n", numChld, __func__, __LINE__);
     delete ReqMan;

@@ -7,7 +7,7 @@ static bool closeServer = false;
 int read_conf_file(const char* path_conf);
 //======================================================================
 int main_proc(const char* name_proc);
-void child_proc(SOCKET sock, int numChld, HANDLE, HANDLE, HANDLE);
+void child_proc(SOCKET sock, int numChld, HANDLE);
 //======================================================================
 int main(int argc, char* argv[])
 {
@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
         exit(1);
     }
     //------------------------------------------------------------------
-    if (argc == 10)
+    if (argc == 8)
     {
         setlocale(LC_CTYPE, "");
         if (!strcmp(argv[1], "child"))
@@ -25,31 +25,22 @@ int main(int argc, char* argv[])
             int numChld;
             DWORD ParentID;
             SOCKET sockServ;
-            HANDLE hIn, hOut, hReady;
+            HANDLE hReady;
             HANDLE hChildLog, hChildLogErr;
 
             stringstream ss;
             ss << argv[2] << ' ' << argv[3] << ' '
                 << argv[4] << ' ' << argv[5] << ' '
-                << argv[6] << ' ' << argv[7] << ' '
-                << argv[8] << ' ' << argv[9];
+                << argv[6] << ' ' << argv[7];
             ss >> numChld;
             ss >> ParentID;
             ss >> sockServ;
-            ss >> hIn;
-            ss >> hOut;
             ss >> hReady;
             ss >> hChildLog;
             ss >> hChildLogErr;
 
             open_logfiles(hChildLog, hChildLogErr);
-
-            SECURITY_ATTRIBUTES saAttr;
-            saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-            saAttr.bInheritHandle = FALSE;
-            saAttr.lpSecurityDescriptor = NULL;
-
-            child_proc(sockServ, numChld, hIn, hOut, hReady);
+            child_proc(sockServ, numChld, hReady);
             exit(0);
         }
         else
@@ -57,27 +48,22 @@ int main(int argc, char* argv[])
             exit(1);
         }
     }
-    else
+    else if  (argc == 1)
     {
+        cout << "<" << __LINE__ << "> Error argc=" << argc << "\n";
         printf(" LC_CTYPE: %s\n", setlocale(LC_CTYPE, ""));
         main_proc(argv[0]);
+        exit(0);
     }
-
+    cout << "<" << __LINE__ << "> Error [argc=" << argc << "]\n";
     return 0;
 }
 //======================================================================
 void create_logfiles(const wchar_t* log_dir, HANDLE* h, HANDLE* hErr);
-void read_from_pipe(HANDLE);
-
-mutex mtx_balancing;
-condition_variable cond_wait;
-
-int numConn = 0;
 //======================================================================
 int main_proc(const char* name_proc)
 {
     DWORD pid = GetCurrentProcessId();
-    HANDLE hPipeParent[6] = { NULL };
     HANDLE hLog, hLogErr;
     create_logfiles(conf->wLogDir.c_str(), &hLog, &hLogErr);
 
@@ -126,48 +112,17 @@ int main_proc(const char* name_proc)
         << L"\n   ClientMaxBodySize = " << conf->ClientMaxBodySize
         << L"\n\n";
     //------------------------------------------------------------------
-    HANDLE ready_in = NULL;
-    HANDLE ready_out = NULL;
+    HANDLE hExit_in = NULL;
+    HANDLE hExit_out = NULL;
 
-    if (!CreatePipe(&ready_in, &ready_out, &saAttr, 0))
+    if (!CreatePipe(&hExit_in, &hExit_out, &saAttr, 0))
     {
         cerr << "<" << __LINE__ << "> Error: CreatePipe" << "\n";
         cin.get();
         exit(1);
     }
 
-    if (!SetHandleInformation(ready_in, HANDLE_FLAG_INHERIT, 0))
-    {
-        cerr << "<" << __LINE__ << "> Error: SetHandleInformation" << "\n";
-        cin.get();
-        exit(1);
-    }
-    //------------------------------------------------------------------
-    HANDLE to_in = NULL, to_out = NULL;
-    HANDLE from_in = NULL, from_out = NULL;
-
-    if (!CreatePipe(&to_in, &to_out, &saAttr, 0))
-    {
-        cerr << "<" << __LINE__ << "> Error: CreatePipe" << "\n";
-        cin.get();
-        exit(1);
-    }
-
-    if (!SetHandleInformation(to_out, HANDLE_FLAG_INHERIT, 0))
-    {
-        cerr << "<" << __LINE__ << "> Error: SetHandleInformation" << "\n";
-        cin.get();
-        exit(1);
-    }
-
-    if (!CreatePipe(&from_in, &from_out, &saAttr, 0))
-    {
-        cerr << "<" << __LINE__ << "> Error: CreatePipe" << "\n";
-        cin.get();
-        exit(1);
-    }
-
-    if (!SetHandleInformation(from_in, HANDLE_FLAG_INHERIT, 0))
+    if (!SetHandleInformation(hExit_in, HANDLE_FLAG_INHERIT, 0))
     {
         cerr << "<" << __LINE__ << "> Error: SetHandleInformation" << "\n";
         cin.get();
@@ -187,9 +142,8 @@ int main_proc(const char* name_proc)
 
         stringstream ss;
         ss << name_proc << " child " << numChld << ' ' << pid << ' '
-            << sockServer << ' ' << to_in << ' ' << from_out << ' ' << ready_out << ' '
-            << hLog << ' ' << hLogErr;
-
+           << sockServer << ' '<< hExit_out << ' ' << hLog << ' ' << hLogErr;
+          
         cerr << name_proc << " child " << numChld << "\n";
         bool bSuccess = CreateProcessA(NULL, (char*)ss.str().c_str(), NULL, NULL, true, 0, NULL, NULL, &si, &pi);
         if (!bSuccess)
@@ -204,9 +158,7 @@ int main_proc(const char* name_proc)
         ++numChld;
     }
 
-    CloseHandle(ready_out);
-    CloseHandle(to_in);
-    CloseHandle(from_out);
+    CloseHandle(hExit_out);
     //------------------------------------------------------------------
     if (_wchdir(conf->wRootDir.c_str()))
     {
@@ -215,128 +167,23 @@ int main_proc(const char* name_proc)
         exit(1);
     }
     //------------------------------------------------------------------
-    thread ReadPipe;
-    try
-    {
-        ReadPipe = thread(read_from_pipe, ready_in);
-    }
-    catch (...)
-    {
-        print_err("%d<%s:%d> Error create thread(read_from_pipe)\n", numChld, __func__, __LINE__);
-        exit(1);
-    }
-
-    int num_chld = 0;
-    fd_set rdfds;
-    FD_ZERO(&rdfds);
     while (1)
     {
-        FD_SET(sockServer, &rdfds);
-
-        {
-            unique_lock<mutex> lk(mtx_balancing);
-            while (numConn <= 0)
-            {
-                cond_wait.wait(lk);
-            }
-        }
- 
-        int ret = select(0, &rdfds, NULL, NULL, NULL);
-        if ((ret == SOCKET_ERROR) || closeServer)
-        {
-            if (closeServer)
-                print_err("<%s:%d> closeServer=%u\n", __func__, __LINE__, closeServer);
-            else
-                print_err("<%s:%d> Error select(): %d", __func__, __LINE__, WSAGetLastError());
-            break;
-        }
-
-        if (FD_ISSET(sockServer, &rdfds))
-        {
-            unsigned char ch = 1;
-            DWORD wr;
-            bool res = WriteFile(to_out, &ch, 1, &wr, NULL);
-            if (!res)
-            {
-                int err = GetLastError();
-                print_err("<%s:%d> Error WriteFile(): %d\n", __func__, __LINE__, err);
-                break;
-            }
-
-            res = ReadFile(from_in, &ch, sizeof(ch), &wr, NULL);
-            if (!res || wr == 0)
-            {
-                int err = GetLastError();
-                print_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
-                break;
-            }
-
-            if (ch != 0x02)
-            {
-                print_err("<%s:%d>  Error ch = 0x%hhx\n", __func__, __LINE__, ch);
-            }
-
-            mtx_balancing.lock();
-            --numConn;
-            mtx_balancing.unlock();
-        }
-    }
-
-    for (int i = 0; (i < conf->NumChld) && (!closeServer); ++i)
-    {
-        DWORD wr;
-        unsigned char ch = 0x80;
-        bool res = WriteFile(to_out, &ch, 1, &wr, NULL);
-        if (!res)
-        {
-            int err = GetLastError();
-            print_err("<%s:%d> Error WriteFile(): %d\n", __func__, __LINE__, err);
-            break;
-        }
-
-        res = ReadFile(from_in, &ch, sizeof(ch), &wr, NULL);
-        if (!res || wr == 0)
+        unsigned char ch;
+        DWORD rd;
+        bool res = ReadFile(hExit_in, &ch, sizeof(ch), &rd, NULL);
+        if (!res || rd == 0)
         {
             int err = GetLastError();
             print_err("<%s:%d> Error ReadFile(): %d\n", __func__, __LINE__, err);
             break;
         }
+        print_err("<%s:%d> *** Child process [%d] closed ***\n", __func__, __LINE__, (int)ch);
     }
 
-    CloseHandle(ready_in);
-    CloseHandle(to_out);
-    CloseHandle(from_in);
+    CloseHandle(hExit_in);
 
-    ReadPipe.join();
+    print_err("<%s:%d> Close main_proc\n", __func__, __LINE__);
 
     return 0;
 }
-//======================================================================
-void read_from_pipe(HANDLE ready_in)
-{
-    while (1)
-    {
-        DWORD rd;
-        unsigned char ch;
-        bool res = ReadFile(ready_in, &ch, 1, &rd, NULL);
-        if (!res || rd == 0)
-        {
-            DWORD err = GetLastError();
-            print_err("<%s:%d> Error ReadFile(): %lu\n", __func__, __LINE__, err);
-            break;
-        }
-
-        if (ch >= conf->NumChld)
-        {
-            print_err("<%s:%d> ch=%d\n", __func__, __LINE__, (int)ch);
-            break;
-        }
-    mtx_balancing.lock();
-        ++numConn;
-    mtx_balancing.unlock();
-        cond_wait.notify_one();
-    }
-    CloseHandle(ready_in);
-    print_err("<%s:%d> Exit thread: read_from_pipe\n", __func__, __LINE__);
-}
-

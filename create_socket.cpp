@@ -72,21 +72,7 @@ SOCKET create_server_socket(const Config * conf)
         system("PAUSE");
         return INVALID_SOCKET;
     }
-
-    u_long iMode = 1;
-    // Set the socket I/O mode: In this case FIONBIO
-    // enables or disables the blocking mode for the 
-    // socket based on the numerical value of iMode.
-    // If iMode = 0, blocking is enabled; 
-    // If iMode != 0, non-blocking mode is enabled.
-    if (ioctlsocket(sockfd, FIONBIO, &iMode) == SOCKET_ERROR)
-    {
-        print_err("<%s:%d> Error ioctlsocket(): %d\n", __func__, __LINE__, WSAGetLastError());
-        WSACleanup();
-        system("PAUSE");
-        return INVALID_SOCKET;
-    }
-
+    
     sockbuf = conf->SOCK_BUFSIZE;
     if (setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char*)& sockbuf, sizeof(sockbuf)) == SOCKET_ERROR)
     {

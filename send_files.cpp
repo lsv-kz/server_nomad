@@ -13,14 +13,14 @@ static Connect* list_new_end = NULL;
 
 static int max_resp = 0;
 
-struct pollfd* fdwr;
+static PWSAPOLLFD fdwr;
 
-mutex mtx_send;
-condition_variable cond_add;
-condition_variable cond_minus;
+static mutex mtx_send;
+static condition_variable cond_add;
+static condition_variable cond_minus;
 
-int count_resp = 0;
-int close_thr = 0;
+static int count_resp = 0;
+static int close_thr = 0;
 /*====================================================================*/
 int send_entity(Connect* req, char* rd_buf, int size_buf)
 {
@@ -157,9 +157,9 @@ void send_files(RequestManager * ReqMan)
     char* rd_buf;
     int num_chld = ReqMan->get_num_chld();
 
-    max_resp = conf->MaxRequests; // SizeQueue 
+    max_resp = conf->SizeQueue; //  MaxRequests
 
-    fdwr = new(nothrow) struct pollfd[max_resp];
+    fdwr = new(nothrow) WSAPOLLFD [max_resp];
     rd_buf = new(nothrow) char[size_buf];
     if (!rd_buf || !fdwr)
     {
@@ -192,14 +192,6 @@ void send_files(RequestManager * ReqMan)
         if (ret == SOCKET_ERROR)
         {
             print_err("%d<%s:%d> Error WSAPoll(): %d\n", num_chld, __func__, __LINE__, WSAGetLastError());
-            Connect* tmp = list_start, * next;
-            for (i = 0; (i < count_resp) && tmp; tmp = next)
-            {
-                next = tmp->next;
-                print_err("<%s:%d> %d, %d, i=%d\n", __func__, __LINE__, tmp->clientSocket, fdwr[tmp->index_fdwr].fd, tmp->index_fdwr);
-                ++i;
-            }
-
             exit(1);
         }
         else if (ret == 0)
