@@ -74,7 +74,7 @@ int cgi(Connect* req)
     long long wr_bytes;
     struct _stat st;
     BOOL bSuccess;
-    string str, stmp;
+    string stmp;
 
     char pipeName[40] = "\\\\.\\pipe\\cgi";
     const DWORD PIPE_BUFSIZE = 1024;
@@ -107,9 +107,9 @@ int cgi(Connect* req)
 
     if (_wstat(wPath.c_str(), &st) == -1)
     {
-        utf16_to_mbs(str, wPath.c_str());
+        utf16_to_utf8(stmp, wPath);
         print_err("%d<%s:%d> script (%s) not found: errno=%d\n", req->numChld, __func__,
-            __LINE__, str.c_str(), errno);
+            __LINE__, stmp.c_str(), errno);
         retExit = -RS404;
         goto errExit;
     }
@@ -189,17 +189,17 @@ int cgi(Connect* req)
     env.add("REMOTE_HOST", req->remoteAddr);
     env.add("SERVER_PROTOCOL", get_str_http_prot(req->httpProt));
 
-    utf16_to_mbs(str, conf->wRootDir.c_str());
-    env.add("DOCUMENT_ROOT", str.c_str());
+    utf16_to_mbs(stmp, conf->wRootDir.c_str());
+    env.add("DOCUMENT_ROOT", stmp.c_str());
 
-    utf16_to_mbs(str, req->wDecodeUri.c_str());
-    env.add("REQUEST_URI", str.c_str());
+    utf16_to_mbs(stmp, req->wDecodeUri.c_str());
+    env.add("REQUEST_URI", stmp.c_str());
 
-    utf16_to_mbs(str, wPath.c_str());
-    env.add("SCRIPT_FILENAME", str.c_str());
+    utf16_to_mbs(stmp, wPath.c_str());
+    env.add("SCRIPT_FILENAME", stmp.c_str());
 
-    utf16_to_mbs(str, req->wDecodeUri.c_str());
-    env.add("SCRIPT_NAME", str.c_str());
+    utf16_to_mbs(stmp, req->wDecodeUri.c_str());
+    env.add("SCRIPT_NAME", stmp.c_str());
 
     env.add("REMOTE_ADDR", req->remoteAddr);
     env.add("REMOTE_PORT", req->remotePort);
@@ -222,22 +222,16 @@ int cgi(Connect* req)
             commandLine = conf->wPerlPath;
             commandLine += L' ';
             commandLine += wPath;
-            string tmp;
-            utf16_to_mbs(tmp, commandLine.c_str());
         }
         else if (wcsstr(req->wScriptName, L".py"))
         {
             commandLine = conf->wPyPath;
             commandLine += L' ';
             commandLine += wPath;
-            string tmp;
-            utf16_to_mbs(tmp, commandLine.c_str());
         }
         else
         {
             commandLine = wPath;
-            string tmp;
-            utf16_to_mbs(tmp, commandLine.c_str());
         }
     }
     else
@@ -331,8 +325,8 @@ int cgi(Connect* req)
     CloseHandle(childPipe);
     if (!bSuccess)
     {
-        utf16_to_mbs(str, commandLine.c_str());
-        print_err("%d<%s:%d> Error CreateProcessW(%s)\n", req->numChld, __func__, __LINE__, str.c_str());
+        utf16_to_utf8(stmp, commandLine);
+        print_err("%d<%s:%d> Error CreateProcessW(%s)\n", req->numChld, __func__, __LINE__, stmp.c_str());
         PrintError(__func__, __LINE__, "Error CreateProcessW()");
         retExit = -RS500;
 

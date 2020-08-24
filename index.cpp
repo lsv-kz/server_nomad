@@ -54,7 +54,7 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
     if (INVALID_HANDLE_VALUE == hFind)
     {
         string str;
-        utf16_to_mbs(str, path.c_str());
+        utf16_to_utf8(str, path);
         print_err("%d<%s:%d>  Error opendir(\"%s\")\n", req->numChld,
             __func__, __LINE__, str.c_str());
         return -RS500;

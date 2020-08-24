@@ -76,7 +76,7 @@ int response(RequestManager* ReqMan, Connect* req)
     if (_wstati64(wPath.c_str(), &st64) == -1)
     {
         string sTmp;
-        utf16_to_mbs(sTmp, wPath.c_str());
+        utf16_to_utf8(sTmp, wPath);
         print_err("%d<%s:%d> Error _wstati64(%s): %d\n", numChld, __func__, __LINE__, sTmp.c_str(), errno);
         return -RS404;
     }
@@ -168,7 +168,7 @@ int response(RequestManager* ReqMan, Connect* req)
     if (_wsopen_s(&req->resp.fd, wPath.c_str(), _O_RDONLY | _O_BINARY, _SH_DENYWR, _S_IREAD))
     {
         string sTmp;
-        utf16_to_mbs(sTmp, wPath.c_str());
+        utf16_to_utf8(sTmp, wPath);
         print_err("%d<%s:%d> Error _wopen(%s); err=%d\n", numChld,
             __func__, __LINE__, sTmp.c_str(), errno);
         if (errno == EACCES)
