@@ -14,10 +14,10 @@ public:
     size_t add(const char* name, Val val)
     {
         ostringstream ss;
-        if (*name)
-            ss << name << '=' << val << '\0';
+        if (name)
+            ss << name << '=' << val;
         else
-            ss << '\0';
+            return 0;
 
         size_t len = ss.str().size();
         if ((i + len) >= sizeBufEnv)
@@ -33,8 +33,9 @@ public:
         }
         memcpy(bufEnv + i, ss.str().c_str(), len);
         i += len;
+        bufEnv[i++] = '\0';
         bufEnv[i] = '\0';
-        return len;
+        return len + 2;
     }
     //------------------------------------------------------------------
     char* get() { return bufEnv; }
@@ -208,8 +209,6 @@ int cgi(Connect* req)
         env.add("QUERY_STRING", "");
     else
         env.add("QUERY_STRING", req->sReqParam);
-
-    env.add("", 0);
     //------------------------------------------------------------------
     if (req->resp.scriptType == php_cgi)
     {
