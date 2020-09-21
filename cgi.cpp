@@ -10,17 +10,19 @@ private:
     char* bufEnv;
 
 public:
-    template <typename Val>
-    size_t add(const char* name, Val val)
+    size_t add(const char* name, const char* val)
     {
         ostringstream ss;
         if (name)
-            ss << name << '=' << val;
+            ss << name << '=';
         else
             return 0;
 
+        if (val)
+            ss << val;
+
         size_t len = ss.str().size();
-        if ((i + len) >= sizeBufEnv)
+        if ((i + len + 2) > sizeBufEnv)
         {
             int sizeTmp = sizeBufEnv + len + 128;
             char* tmp = new(nothrow) char[sizeTmp];
@@ -115,7 +117,7 @@ int cgi(Connect* req)
         goto errExit;
     }
     //--------------------- set environment ----------------------------
-    {
+     {
         const int size = 4096;
         char tmpBuf[size];
         if (GetWindowsDirectory(tmpBuf, size))
@@ -129,22 +131,22 @@ int cgi(Connect* req)
             goto errExit;
         }
     }
-    /*
+  
+    {
+        const int size = 4096;
+        char tmpBuf[size];
+        if (ExpandEnvironmentStringsA("PATH=%PATH%", tmpBuf, size))
         {
-            const int size = 4096;
-            char tmpBuf[size];
-            if (ExpandEnvironmentStringsA("PATH=%PATH%", tmpBuf, size))
-            {
-                env.add("PATH", tmpBuf);
-            }
-            else
-            {
-                print_err("%d<%s:%d> Error getenv_s()\n", req->numChld, __func__, __LINE__);
-                retExit = -RS500;
-                goto errExit;
-            }
+            env.add("PATH", tmpBuf);
         }
-    */
+        else
+        {
+            print_err("%d<%s:%d> Error getenv_s()\n", req->numChld, __func__, __LINE__);
+            retExit = -RS500;
+            goto errExit;
+        }
+    }
+   
     if (req->reqMethod == M_POST)
     {
         if (req->req_hdrs.iReqContentLength >= 0)
@@ -182,9 +184,9 @@ int cgi(Connect* req)
     if (req->req_hdrs.iHost >= 0)
         env.add("HTTP_HOST", req->req_hdrs.Value[req->req_hdrs.iHost]);
 
-    env.add("SERVER_PORT", conf->servPort);
+    env.add("SERVER_PORT", conf->servPort.c_str());
 
-    env.add("SERVER_SOFTWARE", conf->ServerSoftware);
+    env.add("SERVER_SOFTWARE", conf->ServerSoftware.c_str());
     env.add("GATEWAY_INTERFACE", "CGI/1.1");
     env.add("REQUEST_METHOD", get_str_method(req->reqMethod));
     env.add("REMOTE_HOST", req->remoteAddr);
@@ -204,11 +206,7 @@ int cgi(Connect* req)
 
     env.add("REMOTE_ADDR", req->remoteAddr);
     env.add("REMOTE_PORT", req->remotePort);
-
-    if (req->sReqParam == NULL)
-        env.add("QUERY_STRING", "");
-    else
-        env.add("QUERY_STRING", req->sReqParam);
+    env.add("QUERY_STRING", req->sReqParam);
     //------------------------------------------------------------------
     if (req->resp.scriptType == php_cgi)
     {
