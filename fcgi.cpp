@@ -546,10 +546,7 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
     }
 
     FCGI_params par(fcgi_sock);
-    /*
-        if (par.add("PATH", getenv("PATH")) < 0)
-            goto err_param;
-    */
+
     if (par.add("SERVER_SOFTWARE", conf->ServerSoftware) < 0)
         goto err_param;
 
