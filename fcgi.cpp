@@ -563,19 +563,22 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
     if (par.add("REMOTE_PORT", req->remotePort) < 0)
         goto err_param;
 
-    utf16_to_mbs(str, req->wDecodeUri.c_str());
+  //  utf16_to_mbs(str, req->wDecodeUri.c_str());
+    utf16_to_utf8(str, req->wDecodeUri);
     if (par.add("REQUEST_URI", str.c_str()) < 0)
         goto err_param;
 
     if (req->resp.scriptType == php_fpm)
     {
-        utf16_to_mbs(str, req->wDecodeUri.c_str());
+   //     utf16_to_mbs(str, req->wDecodeUri.c_str());
+        utf16_to_utf8(str, req->wDecodeUri);
         if (par.add("SCRIPT_NAME", str.c_str()) < 0)
             goto err_param;
 
         wstring wPath = conf->wRootDir;
         wPath += req->wScriptName;
-        utf16_to_mbs(str, wPath.c_str());
+     //   utf16_to_mbs(str, wPath.c_str());
+        utf16_to_utf8(str, wPath);
         if (par.add("SCRIPT_FILENAME", str.c_str()) < 0)
             goto err_param;
     }
