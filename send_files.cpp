@@ -39,7 +39,7 @@ int send_entity(Connect* req, char* rd_buf, int size_buf)
     if (ret <= 0)
     {
         if (ret == -1)
-            print_err("%d<%s:%d> Error: Sent %lld bytes\n", req->numChld, __func__, __LINE__, req->resp.send_bytes);
+            print_err(req, "<%s:%d> Error: Sent %lld bytes\n", __func__, __LINE__, req->resp.send_bytes);
         return ret;
     }
 
@@ -95,7 +95,7 @@ int set_list(RequestManager * ReqMan)
     mtx_send.unlock();
 
     int i = 0;
-    time_t t = time(NULL);
+    __time64_t t = _time64(NULL);
     Connect* tmp = list_start, * next;
 
     for (; tmp; tmp = next)
@@ -107,7 +107,7 @@ int set_list(RequestManager * ReqMan)
             tmp->err = -1;
             print_err("%d<%s:%d> Timeout = %ld\n", tmp->numChld, __func__, __LINE__, t - tmp->time_write);
             tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
-            tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
+            tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = "Timeout";
             del_from_list(tmp, ReqMan);
         }
         else
@@ -128,42 +128,21 @@ int set_list(RequestManager * ReqMan)
     return i;
 }
 //======================================================================
-void delete_timeout_requests(int n, RequestManager * ReqMan)
-{
-    time_t t = time(NULL);
-    Connect* tmp = list_start, * next;
-
-    for (; tmp && (n > 0); tmp = next)
-    {
-        next = tmp->next;
-        if ((t - tmp->time_write) > conf->TimeOut)
-        {
-            tmp->err = -1;
-            print_err("%d<%s:%d> Timeout = %ld\n", tmp->numChld, __func__, __LINE__, t - tmp->time_write);
-            tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
-            tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Timeout";
-            del_from_list(tmp, ReqMan);
-        }
-
-        --n;
-    }
-}
-//======================================================================
 void send_files(RequestManager * ReqMan)
 {
     int i, ret = 0;
-    int timeout = 1;
+    int timeout = 100;
     int size_buf = conf->SOCK_BUFSIZE;
     char* rd_buf;
     int num_chld = ReqMan->get_num_chld();
 
-    max_resp = conf->SizeQueue; //  MaxRequests
+    max_resp = conf->MaxRequests;
 
     fdwr = new(nothrow) WSAPOLLFD [max_resp];
     rd_buf = new(nothrow) char[size_buf];
     if (!rd_buf || !fdwr)
     {
-        print_err("%d<%s:%d> Error malloc()\n", num_chld, __func__, __LINE__);
+        print_err("[%d]<%s:%d> Error malloc()\n", num_chld, __func__, __LINE__);
         exit(1);
     }
 
@@ -188,53 +167,51 @@ void send_files(RequestManager * ReqMan)
         if (count_resp == 0)
             continue;
 
-        ret = WSAPoll(fdwr, count_resp, timeout * 1000);
+        ret = WSAPoll(fdwr, count_resp, timeout);
         if (ret == SOCKET_ERROR)
         {
-            print_err("%d<%s:%d> Error WSAPoll(): %d\n", num_chld, __func__, __LINE__, WSAGetLastError());
+            print_err("[%d]<%s:%d> Error WSAPoll(): %d\n", num_chld, __func__, __LINE__, WSAGetLastError());
             exit(1);
         }
         else if (ret == 0)
         {
-            //           print_err("%d<%s:%d> timeout\n", num_chld, __func__, __LINE__);
-            delete_timeout_requests(count_resp, ReqMan);
             continue;
         }
 
         i = 0;
-        Connect* tmp = list_start, * next;
-        for (; (i < count_resp) && (ret > 0) && tmp; tmp = next)
+        Connect* req = list_start, * next;
+        for (; (i < count_resp) && (ret > 0) && req; req = next)
         {
-            next = tmp->next;
-            if (fdwr[tmp->index_fdwr].revents == POLLWRNORM)
+            next = req->next;
+            if (fdwr[req->index_fdwr].revents == POLLWRNORM)
             {
                 --ret;
-                int wr = send_entity(tmp, rd_buf, size_buf);
+                int wr = send_entity(req, rd_buf, size_buf);
                 if (wr == 0)
                 {
-                    tmp->err = wr;
-                    del_from_list(tmp, ReqMan);
+                    req->err = wr;
+                    del_from_list(req, ReqMan);
                 }
                 else if (wr == -1)
                 {
-                    tmp->err = wr;
-                    tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
-                    tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Connection reset by peer";
-                    del_from_list(tmp, ReqMan);
+                    req->err = wr;
+                    req->req_hdrs.iReferer = NUM_HEADERS - 1;
+                    req->req_hdrs.Value[req->req_hdrs.iReferer] = "Connection reset by peer";
+                    del_from_list(req, ReqMan);
                 }
                 else if (wr > 0)
                 {
-                    tmp->time_write = 0;
+                    req->time_write = 0;
                 }
             }
-            else if (fdwr[tmp->index_fdwr].revents != 0)
+            else if (fdwr[req->index_fdwr].revents != 0)
             {
                 --ret;
-                print_err("%d<%s:%d> revents=0x%x\n", num_chld, __func__, __LINE__, fdwr[tmp->index_fdwr].revents);
-                tmp->err = -1;
-                tmp->req_hdrs.iReferer = NUM_HEADERS - 1;
-                tmp->req_hdrs.Value[tmp->req_hdrs.iReferer] = (char*)"Connection reset by peer";
-                del_from_list(tmp, ReqMan);
+                print_err(req, "<%s:%d> revents=0x%x\n", __func__, __LINE__, fdwr[req->index_fdwr].revents);
+                req->err = -1;
+                req->req_hdrs.iReferer = NUM_HEADERS - 1;
+                req->req_hdrs.Value[req->req_hdrs.iReferer] = "Connection reset by peer";
+                del_from_list(req, ReqMan);
             }
 
             ++i;

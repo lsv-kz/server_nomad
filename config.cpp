@@ -83,8 +83,6 @@ int read_conf_file(const char* path_conf)
             ss >> c.ListenBacklog;
         else if (s == "MaxRequests")
             ss >> c.MaxRequests;
-        else if (s == "SizeQueue")
-            ss >> c.SizeQueue;
         else if (s == "NumChld")
             ss >> c.NumChld;
         else if (s == "MaxThreads")

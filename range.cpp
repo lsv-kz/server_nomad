@@ -163,7 +163,7 @@ int parse_range(Connect* req)
     }
     else
     {
-        print_err("%d<%s:%d> Error parse_range()=%d\n", req->numChld, __func__, __LINE__, req->resp.numPart);
+        print_err(req, "<%s:%d> Error parse_range()=%d\n", __func__, __LINE__, req->resp.numPart);
     }
 
     return req->resp.numPart;

@@ -327,14 +327,14 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
     {
         if (!create_header(req, "Transfer-Encoding: chunked", NULL))
         {
-            print_err("%d<%s:%d> Error create_header()\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -RS500;
         }
     }
 
     if (send_header_response(req) < 0)
     {
-        print_err("%d<%s:%d> Error send_header_response()\n", req->numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
         return -1;
     }
     //------------------- send entity after headers --------------------
@@ -343,7 +343,7 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
         ret = chunk.fcgi_to_client(fcgi_sock, header->len);
         if (ret < 0)
         {
-            print_err("%d<%s:%d> Error chunk_buf.fcgi_to_client()=%d\n", req->numChld, __func__, __LINE__, ret);
+            print_err(req, "<%s:%d> Error chunk_buf.fcgi_to_client()=%d\n", __func__, __LINE__, ret);
             return -1;
         }
     }
@@ -354,7 +354,7 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
         ret = read_timeout(fcgi_sock, buf, header->paddingLen, conf->TimeOutCGI);
         if (ret <= 0)
         {
-            print_err("%d<%s:%d> read_timeout()\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> read_timeout()\n", __func__, __LINE__);
             return -1;
         }
     }
@@ -370,7 +370,7 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
             ret = read_timeout(fcgi_sock, buf, header->len, conf->TimeOutCGI);
             if (ret <= 0)
             {
-                print_err("%d<%s:%d> read_timeout()=%d\n", req->numChld, __func__, __LINE__, ret);
+                print_err(req, "<%s:%d> read_timeout()=%d\n", __func__, __LINE__, ret);
                 return -1;
             }
 
@@ -381,7 +381,7 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
             ret = fcgi_to_stderr(fcgi_sock, header->len, conf->TimeOutCGI);
             if (ret <= 0)
             {
-                print_err("%d<%s:%d> fd_to_stream()\n", req->numChld, __func__, __LINE__);
+                print_err(req, "<%s:%d> fd_to_stream()\n", __func__, __LINE__);
                 return -RS502;
             }
         }
@@ -390,13 +390,13 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
             ret = chunk.fcgi_to_client(fcgi_sock, header->len);
             if (ret < 0)
             {
-                print_err("%d<%s:%d> Error chunk_buf.fcgi_to_client()=%d\n", req->numChld, __func__, __LINE__, ret);
+                print_err(req, "<%s:%d> Error chunk_buf.fcgi_to_client()=%d\n", __func__, __LINE__, ret);
                 return -1;
             }
         }
         else
         {
-            print_err("%d<%s:%d> Error fcgi: type=%hhu\n", req->numChld, __func__, __LINE__, header->type);
+            print_err(req, "<%s:%d> Error fcgi: type=%hhu\n", __func__, __LINE__, header->type);
             return -1;
         }
 
@@ -406,7 +406,7 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
             ret = read_timeout(fcgi_sock, buf, header->paddingLen, conf->TimeOutCGI);
             if (ret <= 0)
             {
-                print_err("%d<%s:%d> read_timeout()=%d\n", req->numChld, __func__, __LINE__, ret);
+                print_err(req, "<%s:%d> read_timeout()=%d\n", __func__, __LINE__, ret);
                 return -1;
             }
         }
@@ -415,7 +415,7 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
     ret = chunk.end();
     req->resp.send_bytes = chunk.all();
     if (ret < 0)
-        print_err("%d<%s:%d> Error chunk.end()\n", req->numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d> Error chunk.end()\n", __func__, __LINE__);
 
     return 0;
 }
@@ -424,7 +424,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
 {
     int n, ret;
     fcgi_header header;
-    //print_err("<%s:%d> -------------\n", __func__, __LINE__);
+    //print_err(req, "<%s:%d> -------------\n", __func__, __LINE__);
     req->resp.respStatus = RS200;
 
     while (1)
@@ -439,7 +439,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
             n = fcgi_to_stderr(fcgi_sock, header.len, conf->TimeOutCGI);
             if (n <= 0)
             {
-                print_err("%d<%s:%d> fcgi_to_stderr()=%d\n", req->numChld, __func__, __LINE__, n);
+                print_err(req, "<%s:%d> fcgi_to_stderr()=%d\n", __func__, __LINE__, n);
                 return -RS502;
             }
 
@@ -453,7 +453,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
         }
         else
         {
-            print_err("%d<%s:%d> Error: %hhu\n", req->numChld, __func__, __LINE__, header.type);
+            print_err(req, "<%s:%d> Error: %hhu\n", __func__, __LINE__, header.type);
             return -RS502;
         }
     }
@@ -497,23 +497,23 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
                 !strlcmp_case(line, "Content-Length", 14) || \
                 !strlcmp_case(line, "Connection", 10))
             {
-                print_err("%d<%s:%d> %s\n", req->numChld, __func__, __LINE__, line);
+                print_err(req, "<%s:%d> %s\n", __func__, __LINE__, line);
                 continue;
             }
 
             if (!create_header(req, line, NULL))
             {
-                print_err("%d<%s:%d> Error create_header()\n", req->numChld, __func__, __LINE__);
+                print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
             }
             else if (strlcmp_case(line, "Content-Type", 12))
             {
-                print_err("%d<%s:%d> %s\n", req->numChld, __func__, __LINE__, line);
+                print_err(req, "<%s:%d> %s\n", __func__, __LINE__, line);
             }
         }
         else
         {
-            print_err("%d<%s:%d> Error: %s\n", req->numChld, __func__, __LINE__, line);
+            print_err(req, "<%s:%d> Error: %s\n", __func__, __LINE__, line);
             return -RS500;
         }
     }
@@ -541,7 +541,7 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
     n = write_timeout(fcgi_sock, buf, 16, conf->TimeOutCGI);
     if (n == -1)
     {
-        print_err("%d<%s:%d> Error write_timeout()\n", req->numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d> Error write_timeout()\n", __func__, __LINE__);
         return -RS502;
     }
 
@@ -635,8 +635,7 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
             n = tail_to_fcgi(fcgi_sock, req->tail, req->lenTail);
             if (n < 0)
             {
-                print_err("%d<%s:%d> Error tail to script: %d\n", req->numChld,
-                    __func__, __LINE__, n);
+                print_err(req, "<%s:%d> Error tail to script: %d\n", __func__, __LINE__, n);
                 return -RS502;
             }
             req->req_hdrs.reqContentLength -= n;
@@ -645,7 +644,7 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
         n = client_to_fcgi(req->clientSocket, fcgi_sock, req->req_hdrs.reqContentLength);
         if (n == -1)
         {
-            print_err("%d<%s:%d> Error client_to_fcgi()\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error client_to_fcgi()\n", __func__, __LINE__);
             return -RS502;
         }
     }
@@ -653,7 +652,7 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
     return fcgi_read_headers(req, fcgi_sock);
 
 err_param:
-    print_err("%d<%s:%d> Error send_param()\n", req->numChld, __func__, __LINE__);
+    print_err(req, "<%s:%d> Error send_param()\n", __func__, __LINE__);
     return -RS502;
 }
 //======================================================================
@@ -666,20 +665,20 @@ int fcgi(Connect* req)
     {
         if (req->req_hdrs.iReqContentLength < 0)
         {
-            //		print_err("%d<%s:%d> 411 Length Required\n", req->numChld, __func__, __LINE__);
+            //print_err(req, "<%s:%d> 411 Length Required\n", __func__, __LINE__);
             return -RS411;
         }
 
         if (req->req_hdrs.reqContentLength > conf->ClientMaxBodySize)
         {
-            //		print_err("%d<%s:%d> 413 Request entity too large:%lld\n", req->numChld, 
-            //				  __func__, __LINE__, req->req_hdrs.reqContentLength);
+            //print_err(req, "<%s:%d> 413 Request entity too large:%lld\n", 
+                    // __func__, __LINE__, req->req_hdrs.reqContentLength);
             return -RS413;
         }
 
         if (req->req_hdrs.iReqContentType < 0)
         {
-            print_err("%d<%s:%d> Content-Type \?\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Content-Type \?\n", __func__, __LINE__);
             return -RS400;
         }
     }
@@ -690,13 +689,13 @@ int fcgi(Connect* req)
     }
     else
     {
-        print_err("%d<%s:%d> req->scriptType ?\n", req->numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d> req->scriptType ?\n", __func__, __LINE__);
         return -RS500;
     }
 
     if (fcgi_sock == INVALID_SOCKET)
     {
-        print_err("%d<%s:%d> Error connect to fcgi\n", req->numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d> Error connect to fcgi\n", __func__, __LINE__);
         return -RS500;
     }
 

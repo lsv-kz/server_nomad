@@ -55,8 +55,7 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
     {
         string str;
         utf16_to_utf8(str, path);
-        print_err("%d<%s:%d>  Error opendir(\"%s\")\n", req->numChld,
-            __func__, __LINE__, str.c_str());
+        print_err(req, "<%s:%d>  Error opendir(\"%s\")\n", __func__, __LINE__, str.c_str());
         return -RS500;
     }
 
@@ -106,7 +105,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     {
         if (!create_header(req, "Transfer-Encoding: chunked", NULL))
         {
-            print_err("%d<%s:%d> Error create_header()\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;
         }
     }
@@ -114,7 +113,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     req->resp.respContentLength = -1;
     if (send_header_response(req) < 0)
     {
-        print_err("%d<%s:%d> Error send_header_response()\n", req->numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
         return -1;
     }
 
@@ -139,7 +138,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     }
     catch (int e)
     {
-        print_err("<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+        print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
         return -1;
     }
     //------------------------------------------------------------------
@@ -152,7 +151,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     }
     catch (int e)
     {
-        print_err("<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+        print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
         return -1;
     }
     //-------------------------- Directories ---------------------------
@@ -165,7 +164,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
         }
         catch (int e)
         {
-            print_err("<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+            print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
             return -1;
         }
     }
@@ -177,7 +176,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     }
     catch (int e)
     {
-        print_err("<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+        print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
         return -1;
     }
     //---------------------------- Files -------------------------------
@@ -206,7 +205,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
         }
         catch (int e)
         {
-            print_err("<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+            print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
             return -1;
         }
     }
@@ -233,7 +232,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     }
     catch (int e)
     {
-        print_err("<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+        print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
         return -1;
     }
     //------------------------------------------------------------------
@@ -241,7 +240,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     req->resp.send_bytes = chunk_buf.all();
     if (n < 0)
     {
-        print_err("<%s:%d>   Error chunk_buf.end(): %d\n", __func__, __LINE__, n);
+        print_err(req, "<%s:%d>   Error chunk_buf.end(): %d\n", __func__, __LINE__, n);
         return -1;
     }
 

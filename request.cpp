@@ -16,13 +16,13 @@ void get_request(RequestManager* ReqMan)
         req = ReqMan->pop_req();
         if (!req)
         {
-            print_err("%d<%s:%d>  req = NULL\n", numChld, __func__, __LINE__);
+            print_err("[%d]<%s:%d>  req = NULL\n", numChld, __func__, __LINE__);
             ReqMan->exit_thr();
             return;
         }
         else if (req->clientSocket == INVALID_SOCKET)
         {
-            print_err("%d<%s:%d>  req->clientSocket == INVALID_SOCKET\n", numChld, __func__, __LINE__);
+            print_err("[%d]<%s:%d>  req->clientSocket == INVALID_SOCKET\n", numChld, __func__, __LINE__);
             ReqMan->exit_thr();
             delete req;
             return;
@@ -33,7 +33,7 @@ void get_request(RequestManager* ReqMan)
             u_long iMode = 1;
             if (ioctlsocket(req->clientSocket, FIONBIO, &iMode) == SOCKET_ERROR)
             {
-                print_err("<%s:%d> Error ioctlsocket(): %d\n", __func__, __LINE__, WSAGetLastError());
+                print_err(req, "<%s:%d> Error ioctlsocket(): %d\n", __func__, __LINE__, WSAGetLastError());
             }
         }
 
@@ -46,13 +46,13 @@ void get_request(RequestManager* ReqMan)
             if (readFromClient == 0)
             {
                 req->req_hdrs.iReferer = NUM_HEADERS - 1;
-                req->req_hdrs.Value[req->req_hdrs.iReferer] = (char*)"Connection reset by peer";
+                req->req_hdrs.Value[req->req_hdrs.iReferer] = "Connection reset by peer";
                 req->err = -1;
             }
             else if (readFromClient == -1000)
             {
                 req->req_hdrs.iReferer = NUM_HEADERS - 1;
-                req->req_hdrs.Value[req->req_hdrs.iReferer] = (char*)"Timeout";
+                req->req_hdrs.Value[req->req_hdrs.iReferer] = "Timeout";
                 req->err = -1;
             }
             else
@@ -102,7 +102,7 @@ void get_request(RequestManager* ReqMan)
         n = utf8_to_utf16(req->decodeUri, req->wDecodeUri);
         if (n)
         {
-            print_err("<%s:%d> utf8_to_utf16()=%d\n", __func__, __LINE__, n);
+            print_err(req, "<%s:%d> utf8_to_utf16()=%d\n", __func__, __LINE__, n);
             req->err = -RS500;
             goto end;
         }

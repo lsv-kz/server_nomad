@@ -53,19 +53,28 @@ int ErrorStrSock(const char* f, int line, const char* s)
 //======================================================================
 string get_time()
 {
-    __time32_t now = 0;
+    __time64_t now = 0;
     struct tm t;
-    char s[40];
+    char cs[40];
 
-    _time32(&now);
-    _gmtime32_s(&t, &now);
-    //	stringstream ss;
-    //	ss << put_time(&t, "%a, %d %b %Y %H:%M:%S GMT");
-    //	return ss.str();
-    string ss;
-    strftime(s, sizeof(s), "%a, %d %b %Y %H:%M:%S GMT", &t);
-    ss = s;
-    return ss;
+    _time64(&now);
+    _gmtime64_s(&t, &now);
+ 
+    strftime(cs, sizeof(cs), "%a, %d %b %Y %H:%M:%S GMT", &t);
+    return cs;
+}
+//======================================================================
+void get_time(string& s)
+{
+    __time64_t now = 0;
+    struct tm t;
+    char cs[40];
+
+    _time64(&now);
+    _gmtime64_s(&t, &now);
+ 
+    strftime(cs, sizeof(cs), "%a, %d %b %Y %H:%M:%S GMT", &t);
+    s = cs;
 }
 //======================================================================
 char* strstr_case(const char* str1, const char* str2)
@@ -416,8 +425,7 @@ int parse_startline_request(Connect* req, char* s, int len)
 
     if (!(req->httpProt = get_int_http_prot(tmp)))
     {
-        print_err("(%d/%d)<%s():%d> Error version protocol\n", req->numReq,
-            req->numConn, __FUNCTION__, __LINE__);
+        print_err(req, "<%s:%d> Error version protocol\n", __func__, __LINE__);
         req->httpProt = HTTP11;
         return -RS400;
     }
@@ -436,7 +444,7 @@ int parse_headers(Connect* req, char* s, int len)
 
     if (!(p = (char*)memchr(pName, ':', len)))
     {
-        print_err("%d<%s:%d> Error: ':' not found\n", req->numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d> Error: ':' not found\n", __func__, __LINE__);
         return -RS400;
     }
     *p = 0;

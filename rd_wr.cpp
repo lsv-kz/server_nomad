@@ -445,7 +445,7 @@ int read_line_sock(SOCKET sock, char* buf, int size, int timeout)
 int check_req(Connect* req, char* s, char** p_newline, unsigned int* len, int* start)
 {
     char* pr, * pn;
-    //	print_err("<%s:%d> %d; %d\n", __func__, __LINE__, *len, *len - 1);
+//    print_err(req, "<%s:%d> %d; %d\n", __func__, __LINE__, *len, *len - 1);
     while (*len > 0)
     {
         pr = (char*)memchr(*p_newline, '\r', (*len - 1));
@@ -469,7 +469,7 @@ int check_req(Connect* req, char* s, char** p_newline, unsigned int* len, int* s
                 int ret = parse_startline_request(req, *p_newline, n);
                 if (ret)
                 {
-                    print_err("%d<%s:%d>  Error parse_startline_request(): %d\n", req->numChld, __func__, __LINE__, ret);
+                    print_err(req, "<%s:%d>  Error parse_startline_request(): %d\n", __func__, __LINE__, ret);
                     return ret;
                 }
                 *start = 1;
@@ -479,7 +479,7 @@ int check_req(Connect* req, char* s, char** p_newline, unsigned int* len, int* s
                 int ret = parse_headers(req, *p_newline, n);
                 if (ret < 0)
                 {
-                    print_err("%d<%s:%d>  Error parse_headers(): %d\n", req->numChld, __func__, __LINE__, ret);
+                    print_err(req, "<%s:%d>  Error parse_headers(): %d\n", __func__, __LINE__, ret);
                     return ret;
                 }
             }
@@ -514,7 +514,7 @@ int read_headers(Connect* req, int timeout1, int timeout2)
     WSAPOLLFD rdfds;
     int timeout = timeout1;
 
-    req->resp.sLogTime = get_time();
+    get_time(req->resp.sLogTime);
 
     p = p_newline = req->bufReq;
 
@@ -535,7 +535,7 @@ int read_headers(Connect* req, int timeout1, int timeout2)
         
         if (rdfds.revents != POLLRDNORM)
         {
-            print_err("%d<%s:%d> .revents != POLLIN: 0x%02x\n", req->numChld, __func__, __LINE__, rdfds.revents);
+            print_err(req, "<%s:%d> .revents != POLLIN: 0x%02x\n", __func__, __LINE__, rdfds.revents);
             return -1;
         }
         
@@ -549,7 +549,7 @@ int read_headers(Connect* req, int timeout1, int timeout2)
         }
         else if (ret == 0)
         {
-            //		print_err("%d<%s:%d> Error recv() = 0; %d\n%s", req->numChld, __func__, __LINE__, len_buf - 1, req->bufReq);
+//            print_err(req, "<%s:%d> Error recv() = 0; %d\n%s", __func__, __LINE__, len_buf - 1, req->bufReq);
             if (len_buf <= 1)
                 return -RS414;
             else

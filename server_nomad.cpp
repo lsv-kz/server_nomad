@@ -94,7 +94,6 @@ int main_proc(const char* name_proc)
         << "\n   MinThreads = " << conf->MinThreads
         << "\n\n   ListenBacklog = " << conf->ListenBacklog
         << "\n   MaxRequests = " << conf->MaxRequests
-        << "\n   SizeQueue = " << conf->SizeQueue
         << "\n\n   KeepAlive " << conf->KeepAlive
         << "\n   TimeoutKeepAlive = " << conf->TimeoutKeepAlive
         << "\n   TimeOut = " << conf->TimeOut

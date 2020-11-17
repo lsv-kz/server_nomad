@@ -89,6 +89,27 @@ void print_err(const char* format, ...)
     }
 }
 //======================================================================
+void print_err(Connect* req, const char* format, ...)
+{
+    va_list ap;
+    char buf[256 * 2];
+
+    va_start(ap, format);
+    vsnprintf(buf, 256 * 2, format, ap);
+    va_end(ap);
+
+    stringstream ss;
+    ss << "[" << get_time() << "]-[" << req->numChld << "/" << req->numConn << "/" << req->numReq << "] " << buf;
+
+    lock_guard<mutex> l(mtxLog);
+    DWORD wrr;
+    BOOL res = WriteFile(hLogErr, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
+    if (!res)
+    {
+        exit(1);
+    }
+}
+//======================================================================
 void print_log(Connect* req)
 {
     stringstream ss;

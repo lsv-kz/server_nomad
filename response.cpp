@@ -18,20 +18,18 @@ long long file_size(const wchar_t* s)
 //======================================================================
 int response(RequestManager* ReqMan, Connect* req)
 {
-    int numChld = ReqMan->get_num_chld();
-
     if ((strstr(req->decodeUri, ".php")))
     {
         int ret;
         if ((conf->usePHP != "php-cgi") && (conf->usePHP != "php-fpm"))
         {
-            print_err("%d<%s:%d> Not found: %s\n", numChld, __func__, __LINE__, req->decodeUri);
+            print_err(req, "<%s:%d> Not found: %s\n", __func__, __LINE__, req->decodeUri);
             return -RS404;
         }
         struct _stat st;
         if (_wstat(req->wDecodeUri.c_str() + 1, &st) == -1)
         {
-            print_err("%d<%s:%d> script (%s) not found\n", req->numChld, __func__, __LINE__, req->decodeUri);
+            print_err(req, "<%s:%d> script (%s) not found\n", __func__, __LINE__, req->decodeUri);
             return -RS404;
         }
 
@@ -77,14 +75,14 @@ int response(RequestManager* ReqMan, Connect* req)
     {
         string sTmp;
         utf16_to_utf8(sTmp, wPath);
-        print_err("%d<%s:%d> Error _wstati64(%s): %d\n", numChld, __func__, __LINE__, sTmp.c_str(), errno);
+        print_err(req, "<%s:%d> Error _wstati64(%s): %d\n", __func__, __LINE__, sTmp.c_str(), errno);
         return -RS404;
     }
     else
     {
         if ((!(st64.st_mode & _S_IFDIR)) && (!(st64.st_mode & _S_IFREG)))
         {
-            print_err("%d<%s:%d> Error: file (!S_ISDIR && !S_ISREG) \n", numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error: file (!S_ISDIR && !S_ISREG) \n", __func__, __LINE__);
             return -RS403;
         }
     }
@@ -147,8 +145,7 @@ int response(RequestManager* ReqMan, Connect* req)
         }
         else if (n == -RS416)
         {
-            print_err("%d<%s:%d> Error parse_range(%s); err=416\n", numChld,
-                __func__, __LINE__, req->sRange);
+            print_err(req, "<%s:%d> Error parse_range(%s); err=416\n", __func__, __LINE__, req->sRange);
             req->resp.numPart = 0;
             if (req->req_hdrs.iRange >= 0) req->resp.respStatus = RS200;
             else return n;
@@ -169,8 +166,7 @@ int response(RequestManager* ReqMan, Connect* req)
     {
         string sTmp;
         utf16_to_utf8(sTmp, wPath);
-        print_err("%d<%s:%d> Error _wopen(%s); err=%d\n", numChld,
-            __func__, __LINE__, sTmp.c_str(), errno);
+        print_err(req, "<%s:%d> Error _wopen(%s); err=%d\n", __func__, __LINE__, sTmp.c_str(), errno);
         if (errno == EACCES)
             return -RS403;
         else
@@ -179,7 +175,7 @@ int response(RequestManager* ReqMan, Connect* req)
 
     if (send_header_response(req) <= 0)
     {
-        print_err("%d<%s:%d>  Error send_header_response()\n", numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d>  Error send_header_response()\n", __func__, __LINE__);
         _close(req->resp.fd);
         return -1;
     }
@@ -201,7 +197,7 @@ int response(RequestManager* ReqMan, Connect* req)
         rd_buf = new(nothrow) char[size];
         if (!rd_buf)
         {
-            print_err("%d<%s:%d> Error malloc()\n", numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error malloc()\n", __func__, __LINE__);
             _close(req->resp.fd);
             return -1;
         }
@@ -244,15 +240,15 @@ int send_multy_part(Connect* req, int fd, char* rd_buf, int* size)
         range = &req->resp.rangeBytes[i];
         if ((n = create_multipart_head(buf, req, range, sizeof(buf))))
         {
-            print_err("%d<%s:%d> Error create_multipart_head()=%d\n", req->numChld, __func__, __LINE__, n);
+            print_err(req, "<%s:%d> Error create_multipart_head()=%d\n", __func__, __LINE__, n);
             return -1;
         }
 
         n = write_timeout(req->clientSocket, buf, strlen(buf), conf->TimeOut);
         if (n < 0)
         {
-            print_err("%d<%s:%d> Error: write_timeout(), %lld bytes from %lld bytes\n",
-                req->numChld, __func__, __LINE__, send_all_bytes, all_bytes);
+            print_err(req, "<%s:%d> Error: write_timeout(), %lld bytes from %lld bytes\n",
+                 __func__, __LINE__, send_all_bytes, all_bytes);
             return -1;
         }
 
@@ -260,8 +256,8 @@ int send_multy_part(Connect* req, int fd, char* rd_buf, int* size)
         n = send_file_1(req->clientSocket, fd, rd_buf, size, range->start, &range->part_len);
         if (n < 0)
         {
-            print_err("%d<%s:%d> Error: Sent %lld bytes from %lld bytes; fd=%d\n",
-                req->numChld, __func__, __LINE__,
+            print_err(req, "<%s:%d> Error: Sent %lld bytes from %lld bytes; fd=%d\n",
+                    __func__, __LINE__,
                 send_all_bytes += (len - range->part_len), all_bytes, req->clientSocket);
             return -1;
         }
@@ -272,8 +268,8 @@ int send_multy_part(Connect* req, int fd, char* rd_buf, int* size)
         n = write_timeout(req->clientSocket, buf, 2, conf->TimeOut);
         if (n < 0)
         {
-            print_err("%d<%s:%d> Error: write_timeout() %lld bytes from %lld bytes\n",
-                req->numChld, __func__, __LINE__, send_all_bytes, all_bytes);
+            print_err(req, "<%s:%d> Error: write_timeout() %lld bytes from %lld bytes\n",
+                    __func__, __LINE__, send_all_bytes, all_bytes);
             return -1;
         }
     }
@@ -283,8 +279,8 @@ int send_multy_part(Connect* req, int fd, char* rd_buf, int* size)
     req->resp.send_bytes = send_all_bytes;
     if (n < 0)
     {
-        print_err("%d<%s:%d> Error: write_timeout() %lld bytes from %lld bytes\n",
-            req->numChld, __func__, __LINE__, send_all_bytes, all_bytes);
+        print_err(req, "<%s:%d> Error: write_timeout() %lld bytes from %lld bytes\n",
+                __func__, __LINE__, send_all_bytes, all_bytes);
         return -1;
     }
 
@@ -394,7 +390,7 @@ void send_message(Connect* req, const char* msg)
         req->resp.send_bytes = write_timeout(req->clientSocket, html.str().c_str(), (size_t)req->resp.respContentLength, conf->TimeOut);
         if (req->resp.send_bytes <= 0)
         {
-            print_err("%d<%s:%d> Error write_timeout()\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error write_timeout()\n", __func__, __LINE__);
             req->connKeepAlive = 0;
         }
     }
@@ -457,8 +453,6 @@ char* create_header(Connect* req, const char* name, const char* val)
 /*====================================================================*/
 int send_header_response(Connect* req)
 {
-    int n, len = 0, i;
-
     ostringstream ss;
 
     if (req->httpProt == HTTP09)
@@ -471,13 +465,9 @@ int send_header_response(Connect* req)
         << "Server: " << conf->ServerSoftware << "\r\n";
 
     if (req->reqMethod == M_OPTIONS)
-    {
         ss << "Allow: OPTIONS, GET, HEAD, POST\r\n";
-    }
     else
-    {
         ss << "Accept-Ranges: bytes\r\n";
-    }
 
     if ((req->resp.numPart == 1) && req->resp.rangeBytes)
     {
@@ -495,7 +485,7 @@ int send_header_response(Connect* req)
     if (req->resp.respContentType[0])
     {
         ss << "Content-Type: " << req->resp.respContentType << "\r\n";
-        //print_err("<%s:%d> %s\n", __func__, __LINE__, req->respContentType);	
+        //print_err(req, "<%s:%d> %s\n", __func__, __LINE__, req->respContentType);
     }
 
     if (req->resp.respStatus == RS101)
@@ -508,10 +498,10 @@ int send_header_response(Connect* req)
         ss << "Connection: " << (req->connKeepAlive == 0 ? "close" : "keep-alive") << "\r\n";
     }
     /*----------------------------------------------------------------*/
-    for (i = 0; req->resp.respHeaders[i]; i++)
+    for (int i = 0; req->resp.respHeaders[i]; i++)
     {
         ss << req->resp.respHeaders[i] << "\r\n";
-        //print_err("<%s:%d> %s\n", __func__, __LINE__, req->respHeaders[i]);
+        //print_err(req, "<%s:%d> %s\n", __func__, __LINE__, req->respHeaders[i]);
     }
 
     if (req->resp.numPart > 1)
@@ -523,8 +513,8 @@ int send_header_response(Connect* req)
         ss << "\r\n";
     }
 
-    len = (int)ss.str().size();
-    n = write_timeout(req->clientSocket, ss.str().c_str(), len, conf->TimeOut);
+    int len = (int)ss.str().size();
+    int n = write_timeout(req->clientSocket, ss.str().c_str(), len, conf->TimeOut);
     req->free_resp_headers();
     if (n <= 0)
     {

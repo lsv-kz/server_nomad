@@ -95,8 +95,7 @@ struct Config
 
     int ListenBacklog = 128;
 
-    int MaxRequests = 256;
-    int SizeQueue = 256;
+    int MaxRequests = 512;
 
     char KeepAlive = 'y';
     int TimeoutKeepAlive = 5;
@@ -136,7 +135,7 @@ public:
     int       numChld, timeout;
     SOCKET    clientSocket;
     int       err;
-    time_t    time_write;
+    __time64_t    time_write;
     int       index_fdwr;
 
     int       num_write;
@@ -181,8 +180,8 @@ public:
         int       countReqHeaders;
         long long reqContentLength;
 
-        char* Name[NUM_HEADERS];
-        char* Value[NUM_HEADERS];
+        const char* Name[NUM_HEADERS];
+        const char* Value[NUM_HEADERS];
     } req_hdrs;
     /*--------------------------*/
     struct {
@@ -232,7 +231,7 @@ public:
         resp.respContentType[0] = '\0';
         resp.scriptType = 0;
         resp.countRespHeaders = 0;
-        resp.sLogTime[0] = '\0';
+        resp.sLogTime = "";
         resp.scriptName = NULL;
         resp.respHeaders[0] = NULL;
         resp.rangeBytes = NULL;
@@ -309,6 +308,7 @@ int fcgi(Connect* req);
 int ErrorStrSock(const char* f, int line, const char* s);
 int PrintError(const char* f, int line, const char* s);
 std::string get_time();
+void get_time(std::string& s);
 char* strstr_case(const char* s1, const char* s2);
 int strlcmp_case(const char* s1, const char* s2, int len);
 int strcmp_case(const char* s1, const char* s2);
@@ -351,6 +351,7 @@ int read_headers(Connect* req, int timeout1, int timeout2);
 //----------------------------------------------------------------------
 void open_logfiles(HANDLE, HANDLE);
 void print_err(const char* format, ...);
+void print_err(Connect* req, const char* format, ...);
 void print_log(Connect* req);
 HANDLE GetHandleLogErr();
 //----------------------------------------------------------------------

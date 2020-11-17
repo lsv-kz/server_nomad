@@ -111,7 +111,7 @@ int cgi(Connect* req)
     if (_wstat(wPath.c_str(), &st) == -1)
     {
         utf16_to_utf8(stmp, wPath);
-        print_err("%d<%s:%d> script (%s) not found: errno=%d\n", req->numChld, __func__,
+        print_err(req, "<%s:%d> script (%s) not found: errno=%d\n", __func__,
             __LINE__, stmp.c_str(), errno);
         retExit = -RS404;
         goto errExit;
@@ -126,7 +126,7 @@ int cgi(Connect* req)
         }
         else
         {
-            print_err("%d<%s:%d> Error getenv_s()\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error getenv_s()\n", __func__, __LINE__);
             retExit = -RS500;
             goto errExit;
         }
@@ -141,7 +141,7 @@ int cgi(Connect* req)
         }
         else
         {
-            print_err("%d<%s:%d> Error getenv_s()\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error getenv_s()\n", __func__, __LINE__);
             retExit = -RS500;
             goto errExit;
         }
@@ -153,7 +153,7 @@ int cgi(Connect* req)
             env.add("CONTENT_LENGTH", req->req_hdrs.Value[req->req_hdrs.iReqContentLength]);
         else
         {
-            //		print_err("%d<%s:%d> 411 Length Required\n", req->numChld, __func__, __LINE__);
+            //      print_err(req, "<%s:%d> 411 Length Required\n", __func__, __LINE__);
             retExit = -RS411;
             goto errExit;
         }
@@ -169,7 +169,7 @@ int cgi(Connect* req)
             env.add("CONTENT_TYPE", req->req_hdrs.Value[req->req_hdrs.iReqContentType]);
         else
         {
-            print_err("%d<%s:%d> Content-Type \?\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Content-Type \?\n", __func__, __LINE__);
             retExit = -RS400;
             goto errExit;
         }
@@ -233,7 +233,7 @@ int cgi(Connect* req)
     }
     else
     {
-        print_err("%d<%s:%d> Error CommandLine CreateProcess()\n", req->numChld, __func__, __LINE__);
+        print_err(req, "<%s:%d> Error CommandLine CreateProcess()\n", __func__, __LINE__);
         retExit = -RS500;
         goto errExit;
     }
@@ -241,7 +241,7 @@ int cgi(Connect* req)
     Pipe.hEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
     if (Pipe.hEvent == NULL)
     {
-        print_err("<%s:%d> CreateEvent failed with %lu\n", __func__, __LINE__, GetLastError());
+        print_err(req, "<%s:%d> CreateEvent failed with %lu\n", __func__, __LINE__, GetLastError());
         retExit = -RS500;
         goto errExit;
     }
@@ -263,7 +263,7 @@ int cgi(Connect* req)
         NULL);
     if (Pipe.parentPipe == INVALID_HANDLE_VALUE)
     {
-        print_err("<%s:%d> CreateNamedPipe failed, GLE=%lu\n", __func__, __LINE__, GetLastError());
+        print_err(req, "<%s:%d> CreateNamedPipe failed, GLE=%lu\n", __func__, __LINE__, GetLastError());
         retExit = -RS500;
 
         CloseHandle(Pipe.hEvent);
@@ -273,7 +273,7 @@ int cgi(Connect* req)
 
     if (!SetHandleInformation(Pipe.parentPipe, HANDLE_FLAG_INHERIT, 0))
     {
-        print_err("<%s:%d> Error SetHandleInformation, GLE=%lu\n", __func__, __LINE__, GetLastError());
+        print_err(req, "<%s:%d> Error SetHandleInformation, GLE=%lu\n", __func__, __LINE__, GetLastError());
         retExit = -RS500;
 
         CloseHandle(Pipe.hEvent);
@@ -294,7 +294,7 @@ int cgi(Connect* req)
         NULL);
     if (childPipe == INVALID_HANDLE_VALUE)
     {
-        print_err("<%s:%d> Error CreateFile, GLE=%lu\n", __func__, __LINE__, GetLastError());
+        print_err(req, "<%s:%d> Error CreateFile, GLE=%lu\n", __func__, __LINE__, GetLastError());
         retExit = -RS500;
 
         CloseHandle(Pipe.hEvent);
@@ -323,7 +323,7 @@ int cgi(Connect* req)
     if (!bSuccess)
     {
         utf16_to_utf8(stmp, commandLine);
-        print_err("%d<%s:%d> Error CreateProcessW(%s)\n", req->numChld, __func__, __LINE__, stmp.c_str());
+        print_err(req, "<%s:%d> Error CreateProcessW(%s)\n", __func__, __LINE__, stmp.c_str());
         PrintError(__func__, __LINE__, "Error CreateProcessW()");
         retExit = -RS500;
 
@@ -347,7 +347,7 @@ int cgi(Connect* req)
             wr_bytes = WriteToPipe(&Pipe, req->tail, req->lenTail, PIPE_BUFSIZE, conf->TimeOutCGI);
             if (wr_bytes < 0)
             {
-                print_err("%d<%s:%d> Error write_to_script()=%d\n", req->numChld, __func__, __LINE__, wr_bytes);
+                print_err(req, "%d<%s:%d> Error write_to_script()=%d\n", __func__, __LINE__, wr_bytes);
                 retExit = -RS500;
 
                 CloseHandle(Pipe.hEvent);
@@ -365,7 +365,7 @@ int cgi(Connect* req)
             wr_bytes = client_to_script(req->clientSocket, &Pipe, req->req_hdrs.reqContentLength, PIPE_BUFSIZE, conf->TimeOutCGI);
             if (wr_bytes < 0)
             {
-                print_err("%d<%s:%d> Error client_to_script()\n", req->numChld, __func__, __LINE__);
+                print_err(req, "<%s:%d> Error client_to_script()\n", __func__, __LINE__);
                 retExit = -RS500;
 
                 CloseHandle(Pipe.hEvent);
@@ -403,7 +403,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
     n = ReadFromPipe(Pipe, buf, sizeof(buf) - 1, &ReadFromScript, maxRd, conf->TimeOutCGI);
     if (n < 0)
     {
-        print_err("%d<%s:%d> Error script_to_buf()=%d\n", req->numChld, __func__, __LINE__, ReadFromScript);
+        print_err(req, "%d<%s:%d> Error script_to_buf()=%d\n", __func__, __LINE__, ReadFromScript);
         if (n == -RS408)
             return -RS500;
         return -1;
@@ -425,7 +425,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
         {
             if ((*ptr_buf == '\0') || (len >= 256))
             {
-                print_err("<%s:%d>*** Error ***\n", __func__, __LINE__);
+                print_err(req, "<%s:%d>*** Error ***\n", __func__, __LINE__);
                 return -1;
             }
 
@@ -442,7 +442,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
         s[len] = '\0';
         if (len == 0)
             break;
-        //print_err("<%s:%d> %s\n", __func__, __LINE__, s);
+        //print_err(req, "<%s:%d> %s\n", __func__, __LINE__, s);
         if (!strlcmp_case(s, "Status", 6))
         {
             if ((p2 = (char*)memchr(s, ':', len)))
@@ -450,7 +450,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
                 req->resp.respStatus = strtol(++p2, NULL, 10);
                 if (req->resp.respStatus == 0)
                     return -1;
-                //	if (req->resp.respStatus == RS204)
+                //  if (req->resp.respStatus == RS204)
                 {
                     send_message(req, NULL);
                     return 0;
@@ -470,7 +470,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
 
         if (!create_header(req, s, NULL))
         {
-            print_err("%d<%s:%d> Error create_header()\n", req->numChld, __func__, __LINE__);
+            print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;
         }
     }
@@ -498,7 +498,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
         int n = chunk.add_arr(ptr_buf, ReadFromScript);
         if (n < 0)
         {
-            print_err("%d<%s:%d> Error chunk.add_arr(): %d\n", req->numChld, __func__, __LINE__, n);
+            print_err(req, "<%s:%d> Error chunk.add_arr(): %d\n", __func__, __LINE__, n);
             return -1;
         }
     }
@@ -508,7 +508,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
         ReadFromScript = chunk.cgi_to_client(Pipe, maxRd);
         if (ReadFromScript < 0)
         {
-            print_err("%d<%s:%d> Error chunk.cgi_to_client()=%d\n", req->numChld, __func__, __LINE__, ReadFromScript);
+            print_err(req, "<%s:%d> Error chunk.cgi_to_client()=%d\n", __func__, __LINE__, ReadFromScript);
             return -1;
         }
     }
@@ -517,7 +517,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
     req->resp.send_bytes = chunk.all();
     if (ReadFromScript < 0)
     {
-        print_err("<%s:%d>   Error chunk.end(): %d\n", __func__, __LINE__, ReadFromScript);
+        print_err(req, "<%s:%d> Error chunk.end(): %d\n", __func__, __LINE__, ReadFromScript);
         return -1;
     }
 
