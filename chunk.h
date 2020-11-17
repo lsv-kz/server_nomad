@@ -146,7 +146,7 @@ public:
 
             int size = CHUNK_SIZE_BUF - i, rd;
             int ret = ReadFromPipe(Pipe, buf + MAX_LEN_SIZE_CHUNK + i, size, &rd, sizeBuf, conf->TimeOutCGI);
-            if (ret == 0)
+            if (ret == 0) // BROKEN_PIPE
             {
                 print_err("<%s:%d> ret=%d, rd=%d\n", __func__, __LINE__, ret, rd);
                 if (rd > 0)
@@ -155,7 +155,7 @@ public:
                 }
                 break;
             }
-            else if (ret < 0)
+            else if (ret < 0) // ERROR
             {
                 i = 0;
                 return ret;
@@ -166,7 +166,6 @@ public:
                 if (rd != size)
                 {
                     print_err("<%s:%d> %d rd != size %d\n", __func__, __LINE__, rd, size);
-                    break;
                 }
             }
         }
