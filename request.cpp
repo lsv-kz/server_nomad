@@ -61,8 +61,9 @@ void get_request(RequestManager* ReqMan)
             goto end;
         }
         /*--------------------------------------------------------*/
-        if ((req->httpProt == HTTP09) || (req->httpProt == HTTP2))
+        if ((req->httpProt != HTTP10) && (req->httpProt != HTTP11))
         {
+            req->httpProt = HTTP11;
             req->connKeepAlive = 0;
             req->err = -RS505;
             goto end;
@@ -109,11 +110,10 @@ void get_request(RequestManager* ReqMan)
 
         req->lenDecodeUri = strlen(req->decodeUri);
         //--------------------------------------------------------------
-        if ((req->reqMethod == M_GET) || (req->reqMethod == M_HEAD) || (req->reqMethod == M_POST))
+        if ((req->reqMethod == M_GET) || (req->reqMethod == M_POST))
         {
             int ret = response(ReqMan, req);
-            // "req" may be free !!!
-            if (ret == 1)
+            if (ret == 1) // "req" may be free !!!
             {
                 int ret = ReqMan->end_thr(&num_thr, &num_req);
                 if (ret == EXIT_THR)
@@ -121,7 +121,7 @@ void get_request(RequestManager* ReqMan)
                 else
                     continue;
             }
-
+ 
             req->free_resp_headers();
             req->free_range();
             req->err = ret;
@@ -157,6 +157,7 @@ void get_request(RequestManager* ReqMan)
 int options(Connect* req)
 {
     req->resp.respStatus = RS204;
-    send_header_response(req);
+    if (send_response_headers(req) < 0)
+        return -1;
     return 0;
 }

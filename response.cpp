@@ -173,7 +173,7 @@ int response(RequestManager* ReqMan, Connect* req)
             return -RS500;
     }
 
-    if (send_header_response(req) <= 0)
+    if (send_response_headers(req))
     {
         print_err(req, "<%s:%d>  Error send_header_response()\n", __func__, __LINE__);
         _close(req->resp.fd);
@@ -277,7 +277,7 @@ int send_multy_part(Connect* req, int fd, char* rd_buf, int* size)
     snprintf(buf, sizeof(buf), "--%s--\r\n", boundary);
     n = write_timeout(req->clientSocket, buf, strlen(buf), conf->TimeOut);
     req->resp.send_bytes = send_all_bytes;
-    if (n < 0)
+    if (n <= 0)
     {
         print_err(req, "<%s:%d> Error: write_timeout() %lld bytes from %lld bytes\n",
                 __func__, __LINE__, send_all_bytes, all_bytes);
@@ -354,7 +354,7 @@ const char* status_resp(int st)
 void send_message(Connect* req, const char* msg)
 {
     ostringstream html;
-
+ //print_err(req, "<%s:%d> ---\n", __func__, __LINE__);
     if ((req->resp.respStatus != RS204) && (req->reqMethod != M_HEAD))
     {
         const char* title = status_resp(req->resp.respStatus);
@@ -385,7 +385,7 @@ void send_message(Connect* req, const char* msg)
         req->resp.respContentType[0] = 0;
     }
 
-    if ((send_header_response(req) > 0) && (req->resp.respContentLength > 0))
+    if ((send_response_headers(req) == 0) && (req->resp.respContentLength > 0))
     {
         req->resp.send_bytes = write_timeout(req->clientSocket, html.str().c_str(), (size_t)req->resp.respContentLength, conf->TimeOut);
         if (req->resp.send_bytes <= 0)
@@ -451,12 +451,12 @@ char* create_header(Connect* req, const char* name, const char* val)
     return NULL;
 }
 /*====================================================================*/
-int send_header_response(Connect* req)
+int send_response_headers(Connect* req)
 {
     ostringstream ss;
 
     if (req->httpProt == HTTP09)
-        return 1;
+        return -1;
     else if ((req->httpProt == HTTP2) || (req->httpProt == 0))
         req->httpProt = HTTP11;
 
@@ -501,27 +501,25 @@ int send_header_response(Connect* req)
     for (int i = 0; req->resp.respHeaders[i]; i++)
     {
         ss << req->resp.respHeaders[i] << "\r\n";
-        //print_err(req, "<%s:%d> %s\n", __func__, __LINE__, req->respHeaders[i]);
+        delete[] req->resp.respHeaders[i];
+        req->resp.respHeaders[i] = NULL;
     }
 
     if (req->resp.numPart > 1)
-    {
         ss << "\r\n\r\n";
-    }
     else
-    {
         ss << "\r\n";
-    }
 
     int len = (int)ss.str().size();
     int n = write_timeout(req->clientSocket, ss.str().c_str(), len, conf->TimeOut);
-    req->free_resp_headers();
     if (n <= 0)
     {
-        print_err("%d<%s:%d> Sent to client response error; (%d)\n", req->numChld, __func__, __LINE__, n);
-        return n;
+        print_err(req, "<%s:%d> Sent to client response error; (%d)\n", __func__, __LINE__, n);
+        req->req_hdrs.iReferer = NUM_HEADERS - 1;
+        req->req_hdrs.Value[req->req_hdrs.iReferer] = "Error send response headers";
+        return -1;
     }
 
-    return n;
+    return 0;
 }
 

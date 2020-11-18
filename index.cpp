@@ -111,7 +111,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     }
     snprintf(req->resp.respContentType, sizeof(req->resp.respContentType), "text/html; charset=utf-8");
     req->resp.respContentLength = -1;
-    if (send_header_response(req) < 0)
+    if (send_response_headers(req))
     {
         print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
         return -1;

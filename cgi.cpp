@@ -487,7 +487,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
         }
     }
 
-    if (send_header_response(req) < 0)
+    if (send_response_headers(req))
     {
         return -1;
     }

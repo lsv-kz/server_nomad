@@ -332,7 +332,7 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
         }
     }
 
-    if (send_header_response(req) < 0)
+    if (send_response_headers(req))
     {
         print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
         return -1;

@@ -522,7 +522,7 @@ int read_headers(Connect* req, int timeout1, int timeout2)
     rdfds.events = POLLRDNORM;
     while (1)
     {
-        ret = WSAPoll(&rdfds, 1, timeout);
+        ret = WSAPoll(&rdfds, 1, timeout * 1000);
         if (ret == SOCKET_ERROR)
         {
             ErrorStrSock(__func__, __LINE__, "Error select()");
@@ -549,7 +549,7 @@ int read_headers(Connect* req, int timeout1, int timeout2)
         }
         else if (ret == 0)
         {
-//            print_err(req, "<%s:%d> Error recv() = 0; %d\n%s", __func__, __LINE__, len_buf - 1, req->bufReq);
+            print_err(req, "<%s:%d> Error recv() = 0; %d\n%s", __func__, __LINE__, len_buf - 1, req->bufReq);
             if (len_buf <= 1)
                 return -RS414;
             else
@@ -564,7 +564,9 @@ int read_headers(Connect* req, int timeout1, int timeout2)
         if (n == 1)
             return all_rd;
         else if (n < 0)
+        {
             return n;
+        }
 
         p += ret;
         len_buf -= ret;

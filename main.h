@@ -145,7 +145,7 @@ public:
 
     char      bufReq[LEN_BUF_REQUEST];
 
-    char* tail;
+    char*     tail;
     int       lenTail;
 
     char      decodeUri[LEN_BUF_REQUEST];
@@ -153,14 +153,14 @@ public:
 
     std::wstring   wDecodeUri;
 
-    char* uri;
+    char*     uri;
     size_t    uriLen;
 
     int       reqMethod;
     //---------------------- dynamic buffer ----------------------------
     const wchar_t* wScriptName;
     //---------------------- end ---------------------------------------
-    char* sReqParam;
+    char*     sReqParam;
     char      sRange[64];
     int       httpProt;
     int       connKeepAlive;
@@ -191,12 +191,12 @@ public:
         char      respContentType[128];
         long long fileSize;
         int       countRespHeaders;
-        char* respHeaders[NUM_HEADERS];
+        char*     respHeaders[NUM_HEADERS];
 
         int       scriptType;
         const char* scriptName;
 
-        struct Range* rangeBytes;
+        Range*    rangeBytes;
         int       numPart;
         int       fd;
         long long offset;
@@ -337,7 +337,7 @@ int utf8_to_utf16(std::string& u8, std::wstring& ws);
 void send_message(Connect* req, const char* msg);
 int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len_buf);
 char* create_header(Connect* req, const char* name, const char* val);
-int send_header_response(Connect* req);
+int send_response_headers(Connect* req);
 //----------------------------------------------------------------------
 int read_timeout(SOCKET sock, char* buf, int len, int timeout);
 int write_timeout(SOCKET sock, const char* buf, size_t len, int timeout);
