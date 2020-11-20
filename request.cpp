@@ -122,14 +122,12 @@ void get_request(RequestManager* ReqMan)
                     continue;
             }
  
-            req->free_resp_headers();
             req->free_range();
             req->err = ret;
         }
         else if (req->reqMethod == M_OPTIONS)
         {
             req->err = options(req);
-            req->free_resp_headers();
         }
         else
             req->err = -RS501;
@@ -138,7 +136,7 @@ void get_request(RequestManager* ReqMan)
         if (req->err <= -RS101)
         {
             req->resp.respStatus = -req->err;
-            send_message(req, "");
+            send_message(req, "", NULL);
 
             if ((req->reqMethod == M_POST) || (req->reqMethod == M_PUT))
                 req->connKeepAlive = 0;
@@ -157,7 +155,7 @@ void get_request(RequestManager* ReqMan)
 int options(Connect* req)
 {
     req->resp.respStatus = RS204;
-    if (send_response_headers(req) < 0)
+    if (send_response_headers(req, NULL) < 0)
         return -1;
     return 0;
 }

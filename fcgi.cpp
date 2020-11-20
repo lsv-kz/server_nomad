@@ -313,7 +313,7 @@ int fcgi_get_header(SOCKET fcgi_sock, fcgi_header * header)
     return n;
 }
 //======================================================================
-int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
+int fcgi_chunk(Connect* req, HeapArray<string>* hdrs, SOCKET fcgi_sock, fcgi_header * header)
 {
     int ret;
     int chunked = ((req->httpProt == HTTP11) && req->connKeepAlive) ? 1 : 0;
@@ -325,14 +325,14 @@ int fcgi_chunk(Connect* req, SOCKET fcgi_sock, fcgi_header * header)
 
     if (chunked)
     {
-        if (!create_header(req, "Transfer-Encoding: chunked", NULL))
+        if (hdrs->add("Transfer-Encoding: chunked"))
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -RS500;
         }
     }
 
-    if (send_response_headers(req))
+    if (send_response_headers(req, hdrs))
     {
         print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
         return -1;
@@ -458,6 +458,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
         }
     }
     //-------------------------- read headers --------------------------
+    HeapArray <string> hdrs(16);
     for (; header.len > 0; )
     {
         char* p2;
@@ -486,7 +487,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
                 //	sscanf(++p2, "%d", &req->resp.respStatus); // ?
             //		if(req->resp.respStatus == RS204)
                 {
-                    send_message(req, NULL);
+                    send_message(req, NULL, &hdrs);
                     return 0;
                 }
                 continue;
@@ -501,7 +502,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
                 continue;
             }
 
-            if (!create_header(req, line, NULL))
+            if (hdrs.add(line))
             {
                 print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
@@ -518,7 +519,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
         }
     }
 
-    return fcgi_chunk(req, fcgi_sock, &header);
+    return fcgi_chunk(req, &hdrs, fcgi_sock, &header);
 }
 //======================================================================
 int fcgi_send_param(Connect* req, SOCKET fcgi_sock)

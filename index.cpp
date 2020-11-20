@@ -101,9 +101,10 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     ClChunked chunk_buf(req->clientSocket, chunked);
 
     req->resp.respStatus = RS200;
+    HeapArray <string> hdrs(8);
     if (chunked)
     {
-        if (!create_header(req, "Transfer-Encoding: chunked", NULL))
+        if (hdrs.add("Transfer-Encoding: chunked"))
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;
@@ -111,7 +112,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     }
     snprintf(req->resp.respContentType, sizeof(req->resp.respContentType), "text/html; charset=utf-8");
     req->resp.respContentLength = -1;
-    if (send_response_headers(req))
+    if (send_response_headers(req, &hdrs))
     {
         print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
         return -1;

@@ -91,28 +91,26 @@ int response(RequestManager* ReqMan, Connect* req)
     {
         if (req->uri[req->uriLen - 1] != '/')
         {
-            const char* p = "The document has moved <a href=\"%s\">here</a>";
-            char* s;
             req->uri[req->uriLen] = '/';
             req->uri[req->uriLen + 1] = '\0';
             req->resp.respStatus = RS301;
 
-            if (!create_header(req, "Location: ", req->uri))
+            HeapArray <string> hdrs(1);
+            string sh("Location: ");
+            if (hdrs.add(sh + req->uri))
             {
+                print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
             }
 
-            size_t len = strlen(p) + req->uriLen + 2;
-
-            s = new(nothrow) char[len];
-            if (!s)
+            HeapBuf s(256);
+            if (!s.ptr())
             {
                 return -1;
             }
 
-            snprintf(s, len, p, req->uri);
-            send_message(req, s);
-            delete[] s;
+            s << "The document has moved <a href=\"" << req->uri << "\">here</a>";
+            send_message(req, s.ptr(), &hdrs);
             return 0;
         }
         //--------------------------------------------------------------
@@ -173,7 +171,7 @@ int response(RequestManager* ReqMan, Connect* req)
             return -RS500;
     }
 
-    if (send_response_headers(req))
+    if (send_response_headers(req, NULL))
     {
         print_err(req, "<%s:%d>  Error send_header_response()\n", __func__, __LINE__);
         _close(req->resp.fd);
@@ -351,7 +349,7 @@ const char* status_resp(int st)
     return "";
 }
 //========================== send_message ==============================
-void send_message(Connect* req, const char* msg)
+void send_message(Connect* req, const char* msg, HeapArray <string>* hdrs)
 {
     ostringstream html;
  //print_err(req, "<%s:%d> ---\n", __func__, __LINE__);
@@ -385,7 +383,7 @@ void send_message(Connect* req, const char* msg)
         req->resp.respContentType[0] = 0;
     }
 
-    if ((send_response_headers(req) == 0) && (req->resp.respContentLength > 0))
+    if ((send_response_headers(req, hdrs) == 0) && (req->resp.respContentLength > 0))
     {
         req->resp.send_bytes = write_timeout(req->clientSocket, html.str().c_str(), (size_t)req->resp.respContentLength, conf->TimeOut);
         if (req->resp.send_bytes <= 0)
@@ -427,31 +425,7 @@ int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len
     return 0;
 }
 /*====================================================================*/
-char* create_header(Connect* req, const char* name, const char* val)
-{
-    if (name)
-    {
-        size_t lenName = strlen(name), lenVal = 0;
-        char* p;
-        if (val)
-            lenVal = strlen(val);
-
-        p = new(nothrow) char[lenName + lenVal + 1];
-        if (!p)
-            return NULL;
-
-        memcpy(p, name, lenName + 1);
-        if (val)
-            memcpy(p + lenName, val, lenVal + 1);
-        req->resp.respHeaders[req->resp.countRespHeaders] = p;
-        req->resp.respHeaders[++req->resp.countRespHeaders] = NULL;
-        return p;
-    }
-
-    return NULL;
-}
-/*====================================================================*/
-int send_response_headers(Connect* req)
+int send_response_headers(Connect* req, HeapArray <string>* hdrs)
 {
     ostringstream ss;
 
@@ -498,11 +472,15 @@ int send_response_headers(Connect* req)
         ss << "Connection: " << (req->connKeepAlive == 0 ? "close" : "keep-alive") << "\r\n";
     }
     /*----------------------------------------------------------------*/
-    for (int i = 0; req->resp.respHeaders[i]; i++)
+    if (hdrs)
     {
-        ss << req->resp.respHeaders[i] << "\r\n";
-        delete[] req->resp.respHeaders[i];
-        req->resp.respHeaders[i] = NULL;
+        string* p;
+        hdrs->set();
+        while ((p = hdrs->get()))
+        {
+//            print_err(req, "<%s:%d> [%s]\n", __func__, __LINE__, p->c_str());
+            ss << *p << "\r\n";
+        }
     }
 
     if (req->resp.numPart > 1)

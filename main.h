@@ -65,6 +65,188 @@ enum {
     EXIT_THR = 1,
 };
 
+void print_err(const char* format, ...);
+//----------------------------------------------------------------------
+class HeapBuf
+{
+protected:
+    char* buf;
+    unsigned long i;
+    unsigned long size_buf;
+    const unsigned long max_size = 65536;
+
+    void resize(int n)
+    {
+        char* new_buf;
+        unsigned long new_size = size_buf + n + 256;
+        if (new_size > max_size)
+            throw "Error size buf too large";
+        new_buf = new(std::nothrow) char[new_size];
+        if (!new_buf)
+            throw "Error malloc";
+
+        memcpy(new_buf, buf, size_buf);
+        size_buf = new_size;
+        delete[] buf;
+        buf = new_buf;
+    }
+
+public:
+    HeapBuf()
+    {
+        i = 0;
+        size_buf = 256;
+        buf = new(std::nothrow) char[size_buf];
+    }
+
+    HeapBuf(unsigned long sz)
+    {
+        i = 0;
+        if (sz > max_size)
+        {
+            buf = NULL;
+            return;
+        }
+        size_buf = sz;
+        buf = new(std::nothrow) char[size_buf];
+    }
+
+    ~HeapBuf()
+    {
+        if (buf) delete[] buf;
+    }
+
+    HeapBuf& operator << (const char* s)
+    {
+        unsigned long ln = strlen(s);
+        if ((i + ln + 1) > size_buf)
+            resize((i + ln + 1) - size_buf);
+        memcpy(buf + i, s, ln);
+        i += ln;
+        *(buf + i) = 0;
+        return *this;
+    }
+
+    HeapBuf & operator << (const std::string & s)
+    {
+        unsigned long ln = s.size();
+        if ((i + ln + 1) > size_buf)
+            resize((i + ln + 1) - size_buf);
+        memcpy(buf + i, s.c_str(), ln);
+        i += ln;
+        *(buf + i) = 0;
+        return *this;
+    }
+
+    HeapBuf & operator << (const long long ll)
+    {
+        const unsigned long sz = 21;
+        char s[sz];
+        snprintf(s, sz, "%lld", ll);
+        unsigned long ln = strlen(s);
+        if ((i + ln + 1) > size_buf)
+            resize((i + ln + 1) - size_buf);
+        memcpy(buf + i, s, ln);
+        i += ln;
+        *(buf + i) = 0;
+        return *this;
+    }
+
+    void add(char* s, unsigned long n)
+    {
+        if ((i + n) > size_buf)
+            resize((i + n) - size_buf);
+        memcpy(buf + i, s, n);
+        i += n;
+    }
+
+    char* ptr() { return buf; }
+    unsigned long len() { return i; }
+    unsigned long size() { return size_buf; }
+};
+//----------------------------------------------------------------------
+template <typename T>
+class HeapArray
+{
+protected:
+    T* buf;
+    int size;
+    int bufInd;
+    int i;
+public:
+    HeapArray()
+    {
+        size = 0;
+        bufInd = 0;
+        buf = NULL;
+    }
+
+    HeapArray(int n)
+    {
+        size = n;
+        bufInd = 0;
+        buf = new(std::nothrow) T[n];
+    }
+
+    ~HeapArray()
+    {
+        if (buf) delete[] buf;
+    }
+
+    int add(const T& val)
+    {
+        if ((bufInd >= size) || (buf == NULL))
+        {
+            return -1;
+        }
+        buf[bufInd++] = val;
+        return 0;
+    }
+
+    T* ptr() { return buf; }
+    int len() { return bufInd; }
+    void resize(int n)
+    {
+        if (bufInd >= n)
+            return;
+        size = n;
+        if (!buf)
+        {
+            buf = new(std::nothrow) T[n];
+        }
+        else
+        {
+            T* tmp;
+            tmp = new(std::nothrow) T[n];
+            for (int c = 0; c < bufInd; ++c)
+            {
+                tmp[c] = buf[c];
+            }
+
+            delete[] buf;
+            buf = tmp;
+        }
+    }
+
+    void set() { i = 0; }
+
+    T* get()
+    {
+        if (i < bufInd)
+            return &buf[i++];
+        else
+            return NULL;
+    }
+
+    T* get(int n)
+    {
+        if ((i < bufInd) && (i < n))
+            return &buf[i++];
+        else
+            return NULL;
+    }
+};
+//----------------------------------------------------------------------
 struct Range {
     long long start;
     long long end;
@@ -191,7 +373,6 @@ public:
         char      respContentType[128];
         long long fileSize;
         int       countRespHeaders;
-        char*     respHeaders[NUM_HEADERS];
 
         int       scriptType;
         const char* scriptName;
@@ -233,17 +414,7 @@ public:
         resp.countRespHeaders = 0;
         resp.sLogTime = "";
         resp.scriptName = NULL;
-        resp.respHeaders[0] = NULL;
         resp.rangeBytes = NULL;
-    }
-
-    void free_resp_headers()
-    {
-        for (int i = 0; resp.respHeaders[i] && (i < resp.countRespHeaders); i++)
-        {
-            delete[] resp.respHeaders[i];
-            resp.respHeaders[i] = NULL;
-        }
     }
 
     void free_range()
@@ -334,10 +505,9 @@ int utf16_to_utf8(std::string& s, const wchar_t* ws);
 int utf8_to_utf16(char* u8, std::wstring& ws);
 int utf8_to_utf16(std::string& u8, std::wstring& ws);
 //-------------------- send_resp ---------------------------------------
-void send_message(Connect* req, const char* msg);
+void send_message(Connect* req, const char* msg, HeapArray <std::string>* hdrs);
 int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len_buf);
-char* create_header(Connect* req, const char* name, const char* val);
-int send_response_headers(Connect* req);
+int send_response_headers(Connect* req, HeapArray <std::string>* hdrs);
 //----------------------------------------------------------------------
 int read_timeout(SOCKET sock, char* buf, int len, int timeout);
 int write_timeout(SOCKET sock, const char* buf, size_t len, int timeout);
@@ -350,7 +520,6 @@ int read_line_sock(SOCKET sock, char* buf, int size, int timeout);
 int read_headers(Connect* req, int timeout1, int timeout2);
 //----------------------------------------------------------------------
 void open_logfiles(HANDLE, HANDLE);
-void print_err(const char* format, ...);
 void print_err(Connect* req, const char* format, ...);
 void print_log(Connect* req);
 HANDLE GetHandleLogErr();

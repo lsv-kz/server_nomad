@@ -411,7 +411,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
 
     if (n == 0)
         broken_pipe = true;
-
+    HeapArray <string> hdrs(16);
     buf[ReadFromScript] = 0;
     //-------------------create headers of response---------------------
     ptr_buf = buf;
@@ -452,7 +452,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
                     return -1;
                 //  if (req->resp.respStatus == RS204)
                 {
-                    send_message(req, NULL);
+                    send_message(req, NULL, NULL);
                     return 0;
                 }
             }
@@ -468,7 +468,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
             continue;
         }
 
-        if (!create_header(req, s, NULL))
+        if (hdrs.add(s))
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;
@@ -481,13 +481,13 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
 
     if (chunked)
     {
-        if (!create_header(req, "Transfer-Encoding: chunked", NULL))
+        if (hdrs.add("Transfer-Encoding: chunked"))
         {
             return -1;
         }
     }
 
-    if (send_response_headers(req))
+    if (send_response_headers(req, &hdrs))
     {
         return -1;
     }
