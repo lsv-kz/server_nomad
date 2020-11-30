@@ -101,10 +101,10 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     ClChunked chunk_buf(req->clientSocket, chunked);
 
     req->resp.respStatus = RS200;
-    HeapArray <string> hdrs(8);
+    Array <string> hdrs(8);
     if (chunked)
     {
-        if (hdrs.add("Transfer-Encoding: chunked"))
+        if (hdrs("Transfer-Encoding: chunked"))
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;

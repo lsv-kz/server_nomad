@@ -3,12 +3,12 @@
 using namespace std;
 
 //======================================================================
-int check_range(Connect* req)
+int Ranges::check_range()
 {
-    int size, numPart, m, n;
-    struct Range* r = req->resp.rangeBytes;
-    size = numPart = req->resp.numPart;
-    m = n = size - 1;
+    int numPart, maxIndex, n;
+    Range* r = t;
+    numPart = lenBuf;
+    maxIndex = n = numPart - 1;
 
     while (n > 0)
     {
@@ -25,19 +25,19 @@ int check_range(Connect* req)
                 r[i].part_len = r[i].end - r[i].start + 1;
                 r[n].part_len = 0;
 
-                if ((m > n) && (r[m].part_len > 0))
+                if ((maxIndex > n) && (r[maxIndex].part_len > 0))
                 {
-                    r[n].start = r[m].start;
-                    r[n].end = r[m].end;
-                    r[n].part_len = r[m].part_len;
-                    r[m].part_len = 0;
-                    m--;
-                    n = m - 1;
+                    r[n].start = r[maxIndex].start;
+                    r[n].end = r[maxIndex].end;
+                    r[n].part_len = r[maxIndex].part_len;
+                    r[maxIndex].part_len = 0;
+                    maxIndex--;
+                    n = maxIndex - 1;
                 }
                 else
                 {
-                    m--;
-                    n = m;
+                    maxIndex--;
+                    n = maxIndex;
                 }
                 numPart--;
                 i = n - 1;
@@ -48,15 +48,14 @@ int check_range(Connect* req)
         n--;
     }
 
-    req->resp.numPart = numPart;
     return numPart;
 }
 //======================================================================
-int check_str_range(Connect* req)
+int Ranges::check_str_range(char* sRange, int sizeStr)
 {
-    char* p0 = req->sRange, * p;
+    char* p0 = sRange, * p;
     stringstream ss;
-    long long size = req->resp.fileSize;
+    long long size = sizeFile;
     int numPart = 0;
 
     for (; *p0; p0++)
@@ -75,23 +74,26 @@ int check_str_range(Connect* req)
             if (*p == '-')
             {
                 ch = *(++p);
-                if ((ch >= '0') && (ch <= '9'))// [start-end]
+                if ((ch >= '0') && (ch <= '9'))// [10-50]
                 {
                     end = strtoll(p, &p, 10);
-                    if ((*p != ',') && (*p != ' ') && (*p != 0))
+                    if ((*p != ',') && (*p != 0))
                         break;
                 }
-                else if ((ch == ',') || (ch == 0))// [start-]
+                else if ((ch == ',') || (ch == 0))// [10-]
                     end = size - 1;
                 else
                     break;
             }
             else
-                start = -1;
+            {
+                err = "112";
+                return 0;
+            }
         }
         else if (ch == '-')
         {
-            if ((*(p + 1) >= '0') && (*(p + 1) <= '9'))// [-end]
+            if ((*(p + 1) >= '0') && (*(p + 1) <= '9'))// [-50]
             {
                 end = strtoll(p, &p, 10);
                 if ((*p != ',') && (*p != 0))
@@ -100,18 +102,23 @@ int check_str_range(Connect* req)
                 end = size - 1;
             }
             else
-                break;
+            {
+                err = "128";
+                return 0;
+            }
         }
         else
+        {
+            err = "134";
             break;
+        }
 
         if (end >= size)
             end = size - 1;
 
         if ((start < size) && (end >= start) && (start >= 0))
         {
-            ss << start << '-';
-            ss << end;
+            ss << start << '-' << end;
             if (*p == ',')
                 ss << ',';
             numPart++;
@@ -121,50 +128,42 @@ int check_str_range(Connect* req)
         p++;
     }
 
-    int len = (int)ss.str().size();
-    if (len < (int)sizeof(req->sRange))
-        memcpy(req->sRange, ss.str().c_str(), len + (int)1);
+    int len = ss.str().size();
+    if (len < sizeStr)
+        memcpy(sRange, ss.str().c_str(), len + 1);
     else
+    {
+        err = "158";
         numPart = 0;
+    }
 
-    req->resp.numPart = numPart;
     return numPart;
 }
 //======================================================================
-int parse_range(Connect* req)
+int Ranges::parse_ranges(char* s, int sizeStr, long long sz)
 {
-    int n = check_str_range(req);
-    if (n <= 0)
-        return n;
-
-    req->resp.rangeBytes = new(nothrow) Range[req->resp.numPart];
-    if (!req->resp.rangeBytes)
-        return req->resp.numPart;
-
-    char* p = req->sRange;
-    for (int i = 0; i < req->resp.numPart; ++i)
+    sizeFile = sz;
+    numPart = check_str_range(s, sizeStr);
+    if (numPart > 0)
     {
-        long long start, end;
-        start = strtoll(p, &p, 10);
-        p++;
-        end = strtoll(p, &p, 10);
-        p++;
-        req->resp.rangeBytes[i] = { start, end, end - start + 1 };
-    }
+        if (resize(numPart))
+        {
+            numPart = 0;
+            return 0;
+        }
 
-    if (req->resp.numPart > 1)
-    {
-        return check_range(req);
-    }
-    else if (req->resp.numPart == 1)
-    {
-        req->resp.offset = req->resp.rangeBytes[0].start;
-        req->resp.respContentLength = req->resp.rangeBytes[0].part_len;
-    }
-    else
-    {
-        print_err(req, "<%s:%d> Error parse_range()=%d\n", __func__, __LINE__, req->resp.numPart);
-    }
+        char* p = s;
+        for (int i = 0; i < numPart; ++i)
+        {
+            long long start, end;
+            start = strtoll(p, &p, 10);
+            p++;
+            end = strtoll(p, &p, 10);
+            p++;
+            (*this)({ start, end, end - start + 1 });
+        }
 
-    return req->resp.numPart;
+        numPart = check_range();
+    }
+    return numPart;
 }

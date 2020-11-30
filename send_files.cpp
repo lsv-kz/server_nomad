@@ -224,7 +224,6 @@ void send_files(RequestManager * ReqMan)
 //======================================================================
 void push_resp_queue(Connect* req)
 {
-    req->free_range();
     mtx_send.lock();
     req->time_write = 0;
 

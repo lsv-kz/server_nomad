@@ -122,7 +122,6 @@ void get_request(RequestManager* ReqMan)
                     continue;
             }
  
-            req->free_range();
             req->err = ret;
         }
         else if (req->reqMethod == M_OPTIONS)

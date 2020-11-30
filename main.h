@@ -37,6 +37,7 @@
 #include <direct.h>
 #include <process.h>
 
+#include "classes.h"
 
 #define     MAX_NAME           256
 #define     LEN_BUF_REQUEST    8192
@@ -165,7 +166,7 @@ public:
     unsigned long size() { return size_buf; }
 };
 //----------------------------------------------------------------------
-template <typename T>
+/*template <typename T>
 class HeapArray
 {
 protected:
@@ -245,14 +246,8 @@ public:
         else
             return NULL;
     }
-};
+};*/
 //----------------------------------------------------------------------
-struct Range {
-    long long start;
-    long long end;
-    long long part_len;
-};
-
 typedef struct
 {
     OVERLAPPED oOverlap;
@@ -377,7 +372,6 @@ public:
         int       scriptType;
         const char* scriptName;
 
-        Range*    rangeBytes;
         int       numPart;
         int       fd;
         long long offset;
@@ -414,17 +408,6 @@ public:
         resp.countRespHeaders = 0;
         resp.sLogTime = "";
         resp.scriptName = NULL;
-        resp.rangeBytes = NULL;
-    }
-
-    void free_range()
-    {
-        resp.numPart = 0;
-        if (resp.rangeBytes)
-        {
-            delete[] resp.rangeBytes;
-            resp.rangeBytes = NULL;
-        }
     }
 };
 
@@ -469,7 +452,6 @@ void get_request(RequestManager* ReqMan);
 int response(RequestManager* ReqMan, Connect* req);
 int options(Connect* req);
 int index_dir(RequestManager* ReqMan, Connect* req, std::wstring& path);
-int parse_range(Connect* req);
 
 int decode(char* s_in, size_t len_in, char* s_out, int len);
 //----------------------------------------------------------------------
@@ -505,9 +487,9 @@ int utf16_to_utf8(std::string& s, const wchar_t* ws);
 int utf8_to_utf16(char* u8, std::wstring& ws);
 int utf8_to_utf16(std::string& u8, std::wstring& ws);
 //-------------------- send_resp ---------------------------------------
-void send_message(Connect* req, const char* msg, HeapArray <std::string>* hdrs);
+void send_message(Connect* req, const char* msg, Array <std::string>* hdrs);
 int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len_buf);
-int send_response_headers(Connect* req, HeapArray <std::string>* hdrs);
+int send_response_headers(Connect* req, Array <std::string>* hdrs);
 //----------------------------------------------------------------------
 int read_timeout(SOCKET sock, char* buf, int len, int timeout);
 int write_timeout(SOCKET sock, const char* buf, size_t len, int timeout);

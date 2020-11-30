@@ -2,7 +2,7 @@
 
 using namespace std;
 
-int send_multy_part(Connect* req, int fi, char* rd_buf, int* size);
+int send_multy_part(Connect* req, Ranges& rg, int fi, char* rd_buf, int* size);
 
 const char boundary[] = "----------a9b5r7a4c0a2d5a1b8r3a";
 //======================================================================
@@ -95,9 +95,9 @@ int response(RequestManager* ReqMan, Connect* req)
             req->uri[req->uriLen + 1] = '\0';
             req->resp.respStatus = RS301;
 
-            HeapArray <string> hdrs(1);
+            Array <string> hdrs(1);
             string sh("Location: ");
-            if (hdrs.add(sh + req->uri))
+            if (hdrs(sh + req->uri))
             {
                 print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
@@ -127,30 +127,31 @@ int response(RequestManager* ReqMan, Connect* req)
     req->resp.fileSize = file_size(wPath.c_str());
     req->resp.numPart = 0;
     snprintf(req->resp.respContentType, sizeof(req->resp.respContentType), "%s", content_type(wPath.c_str()));
-    if (req->sRange[0])
+    Ranges rg;
+    if (req->req_hdrs.iRange >= 0)
     {
-        int n = parse_range(req);
-        if (n > 1)
+        req->resp.numPart = rg.parse_ranges(req->sRange, sizeof(req->sRange), req->resp.fileSize);
+        if (req->resp.numPart > 1)
         {
+            if (req->reqMethod == M_HEAD)
+                return -RS405;
             req->resp.respStatus = RS206;
-            if (n > 1)
-                snprintf(req->resp.respContentType, sizeof(req->resp.respContentType),
+            snprintf(req->resp.respContentType, sizeof(req->resp.respContentType),
                     "multipart/byteranges; boundary=%s", boundary);
         }
-        else if (n == 1)
+        else if (req->resp.numPart == 1)
         {
             req->resp.respStatus = RS206;
-        }
-        else if (n == -RS416)
-        {
-            print_err(req, "<%s:%d> Error parse_range(%s); err=416\n", __func__, __LINE__, req->sRange);
-            req->resp.numPart = 0;
-            if (req->req_hdrs.iRange >= 0) req->resp.respStatus = RS200;
-            else return n;
+            Range* pr = rg.get(0);
+            if (pr)
+            {
+                req->resp.offset = pr->start;
+                req->resp.respContentLength = pr->part_len;
+            }
         }
         else
         {
-            req->resp.respStatus = RS200;
+            return -RS416;
         }
     }
     else
@@ -171,19 +172,6 @@ int response(RequestManager* ReqMan, Connect* req)
             return -RS500;
     }
 
-    if (send_response_headers(req, NULL))
-    {
-        print_err(req, "<%s:%d>  Error send_header_response()\n", __func__, __LINE__);
-        _close(req->resp.fd);
-        return -1;
-    }
-
-    if ((req->reqMethod == M_HEAD) || (req->resp.respContentLength == 0))
-    {
-        _close(req->resp.fd);
-        return 0;
-    }
-
     wPath.clear();
     wPath.reserve(0);
 
@@ -200,32 +188,47 @@ int response(RequestManager* ReqMan, Connect* req)
             return -1;
         }
 
-        int ret = send_multy_part(req, req->resp.fd, rd_buf, &size);
+        int ret = send_multy_part(req, rg, req->resp.fd, rd_buf, &size);
         delete[] rd_buf;
         _close(req->resp.fd);
         return ret;
     }
 
-    req->free_range();
+    if (send_response_headers(req, NULL))
+    {
+        print_err(req, "<%s:%d>  Error send_header_response()\n", __func__, __LINE__);
+        _close(req->resp.fd);
+        return -1;
+    }
+
+    if (req->reqMethod == M_HEAD)
+    {
+        _close(req->resp.fd);
+        return 0;
+    }
+
     push_resp_queue(req);
     return 1;
 }
 //======================================================================
-int send_multy_part(Connect* req, int fd, char* rd_buf, int* size)
+int send_multy_part(Connect* req, Ranges& rg, int fd, char* rd_buf, int* size)
 {
     int n;
     long long send_all_bytes, len;
     char buf[1024];
     //------------------------------------------------------------------
     long long all_bytes = 0;
-    int i;
-    struct Range* range;
-
+    Range* range;
     send_all_bytes = 0;
 
-    for (i = 0; i < req->resp.numPart; i++)
+    for (int i = 0; (range = rg.get(i)) && (i < req->resp.numPart); ++i)
     {
-        all_bytes += req->resp.rangeBytes[i].part_len;
+        all_bytes += (range->part_len);
+    }
+
+    if (send_response_headers(req, NULL))
+    {
+        return -1;
     }
 
     wstring path;
@@ -233,9 +236,8 @@ int send_multy_part(Connect* req, int fd, char* rd_buf, int* size)
     snprintf(req->resp.respContentType, sizeof(req->resp.respContentType), "%s",
         content_type(path.c_str()));
 
-    for (i = 0; i < req->resp.numPart; i++)
+    for (int i = 0; (range = rg.get(i)) && (i < req->resp.numPart); ++i)
     {
-        range = &req->resp.rangeBytes[i];
         if ((n = create_multipart_head(buf, req, range, sizeof(buf))))
         {
             print_err(req, "<%s:%d> Error create_multipart_head()=%d\n", __func__, __LINE__, n);
@@ -349,7 +351,7 @@ const char* status_resp(int st)
     return "";
 }
 //========================== send_message ==============================
-void send_message(Connect* req, const char* msg, HeapArray <string>* hdrs)
+void send_message(Connect* req, const char* msg, Array <string>* hdrs)
 {
     ostringstream html;
  //print_err(req, "<%s:%d> ---\n", __func__, __LINE__);
@@ -425,7 +427,7 @@ int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len
     return 0;
 }
 /*====================================================================*/
-int send_response_headers(Connect* req, HeapArray <string>* hdrs)
+int send_response_headers(Connect* req, Array <string>* hdrs)
 {
     ostringstream ss;
 
@@ -443,10 +445,12 @@ int send_response_headers(Connect* req, HeapArray <string>* hdrs)
     else
         ss << "Accept-Ranges: bytes\r\n";
 
-    if ((req->resp.numPart == 1) && req->resp.rangeBytes)
+    if (req->resp.numPart == 1)
     {
-        ss << "Content-Range: bytes " << req->resp.rangeBytes[0].start << "-" << req->resp.rangeBytes[0].end << "/" << req->resp.fileSize << "\r\n";
-        ss << "Content-Length: " << req->resp.rangeBytes[0].part_len << "\r\n";
+        ss << "Content-Range: bytes " << req->resp.offset << "-"
+            << (req->resp.offset + req->resp.respContentLength - 1)
+            << "/" << req->resp.fileSize << "\r\n";
+        ss << "Content-Length: " << req->resp.respContentLength << "\r\n";
     }
     else
     {
@@ -475,8 +479,7 @@ int send_response_headers(Connect* req, HeapArray <string>* hdrs)
     if (hdrs)
     {
         string* p;
-        hdrs->set();
-        while ((p = hdrs->get()))
+        for (int i = 0; (p = hdrs->get(i)); ++i)
         {
 //            print_err(req, "<%s:%d> [%s]\n", __func__, __LINE__, p->c_str());
             ss << *p << "\r\n";

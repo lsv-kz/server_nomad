@@ -131,6 +131,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="chunk.h" />
+    <ClInclude Include="classes.h" />
     <ClInclude Include="main.h" />
   </ItemGroup>
   <ItemGroup>
