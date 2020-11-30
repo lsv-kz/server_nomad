@@ -218,6 +218,7 @@ void send_files(RequestManager * ReqMan)
         }
     }
     print_err("%d<%s:%d> ***** \n", num_chld, __func__, __LINE__);
+
     delete[] rd_buf;
     delete[] fdwr;
 }
