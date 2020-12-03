@@ -44,6 +44,9 @@ bool compareVec(stFile s1, stFile s2)
 //======================================================================
 int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
 {
+    if (req->reqMethod == M_HEAD)
+        return -RS405;
+    
     int dirs, files;
     WIN32_FIND_DATAW ffd;
     HANDLE hFind = INVALID_HANDLE_VALUE;

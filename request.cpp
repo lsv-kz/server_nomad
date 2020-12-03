@@ -110,7 +110,7 @@ void get_request(RequestManager* ReqMan)
 
         req->lenDecodeUri = strlen(req->decodeUri);
         //--------------------------------------------------------------
-        if ((req->reqMethod == M_GET) || (req->reqMethod == M_POST))
+        if ((req->reqMethod == M_GET) || (req->reqMethod == M_HEAD) || (req->reqMethod == M_POST))
         {
             int ret = response(ReqMan, req);
             if (ret == 1) // "req" may be free !!!

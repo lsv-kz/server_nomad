@@ -20,6 +20,8 @@ int response(RequestManager* ReqMan, Connect* req)
 {
     if ((strstr(req->decodeUri, ".php")))
     {
+        if (req->reqMethod == M_HEAD)
+            return -RS405;
         int ret;
         if ((conf->usePHP != "php-cgi") && (conf->usePHP != "php-fpm"))
         {
@@ -54,6 +56,8 @@ int response(RequestManager* ReqMan, Connect* req)
     if (!strncmp(req->decodeUri, "/cgi-bin/", 9)
         || !strncmp(req->decodeUri, "/cgi/", 5))
     {
+        if (req->reqMethod == M_HEAD)
+            return -RS405;
         req->resp.scriptType = cgi_ex;
         wstring s = req->wDecodeUri;
         req->wScriptName = s.c_str();
@@ -377,7 +381,7 @@ void send_message(Connect* req, const char* msg, String* hdrs)
 {
     ostringstream html;
  //print_err(req, "<%s:%d> ---\n", __func__, __LINE__);
-    if ((req->resp.respStatus != RS204) && (req->reqMethod != M_HEAD))
+    if (req->resp.respStatus != RS204)
     {
         const char* title = status_resp(req->resp.respStatus);
         html << "<!DOCTYPE html>\n"
