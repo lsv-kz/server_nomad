@@ -1,9 +1,9 @@
-#include "main.h"
+#include "classes.h"
 
 using namespace std;
 
-int send_multy_part(Connect* req, Ranges& rg, int fi, char* rd_buf, int* size);
-
+int send_multy_part(Connect* req, ArrayRanges& rg, int fi, char* rd_buf, int* size);
+int create_multipart_head(Connect* req, Range* ranges, const char* contentType, char* buf, int len_buf);
 const char boundary[] = "----------a9b5r7a4c0a2d5a1b8r3a";
 //======================================================================
 long long file_size(const wchar_t* s)
@@ -95,21 +95,28 @@ int response(RequestManager* ReqMan, Connect* req)
             req->uri[req->uriLen + 1] = '\0';
             req->resp.respStatus = RS301;
 
-            Array <string> hdrs(1);
-            string sh("Location: ");
-            if (hdrs(sh + req->uri))
+            String hdrs(127, 0);
+            try
+            {
+                hdrs << "Location: " << req->uri << "\r\n";
+            }
+            catch (...)
             {
                 print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
             }
 
-            HeapBuf s(256);
-            if (!s.ptr())
+            String s(256, 0);
+            try
             {
+                s << "The document has moved <a href=\"" << req->uri << "\">here</a>";
+            }
+            catch (...)
+            {
+                print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -1;
             }
 
-            s << "The document has moved <a href=\"" << req->uri << "\">here</a>";
             send_message(req, s.ptr(), &hdrs);
             return 0;
         }
@@ -127,17 +134,24 @@ int response(RequestManager* ReqMan, Connect* req)
     req->resp.fileSize = file_size(wPath.c_str());
     req->resp.numPart = 0;
     snprintf(req->resp.respContentType, sizeof(req->resp.respContentType), "%s", content_type(wPath.c_str()));
-    Ranges rg;
+    ArrayRanges rg;
     if (req->req_hdrs.iRange >= 0)
     {
-        req->resp.numPart = rg.parse_ranges(req->sRange, sizeof(req->sRange), req->resp.fileSize);
+        try
+        {
+            req->resp.numPart = rg.create_ranges(req->sRange, sizeof(req->sRange), req->resp.fileSize);
+        }
+        catch (...)
+        {
+            print_err(req, "<%s:%d> Error create_ranges\n", __func__, __LINE__);
+            return -1;
+        }
+            
         if (req->resp.numPart > 1)
         {
             if (req->reqMethod == M_HEAD)
                 return -RS405;
             req->resp.respStatus = RS206;
-            snprintf(req->resp.respContentType, sizeof(req->resp.respContentType),
-                    "multipart/byteranges; boundary=%s", boundary);
         }
         else if (req->resp.numPart == 1)
         {
@@ -177,10 +191,8 @@ int response(RequestManager* ReqMan, Connect* req)
 
     if (req->resp.numPart > 1)
     {
-        char* rd_buf;
         int size = conf->SOCK_BUFSIZE;
-
-        rd_buf = new(nothrow) char[size];
+        char* rd_buf = new(nothrow) char[size];
         if (!rd_buf)
         {
             print_err(req, "<%s:%d> Error malloc()\n", __func__, __LINE__);
@@ -211,34 +223,44 @@ int response(RequestManager* ReqMan, Connect* req)
     return 1;
 }
 //======================================================================
-int send_multy_part(Connect* req, Ranges& rg, int fd, char* rd_buf, int* size)
+int send_multy_part(Connect* req, ArrayRanges& rg, int fd, char* rd_buf, int* size)
 {
     int n;
     long long send_all_bytes, len;
     char buf[1024];
     //------------------------------------------------------------------
     long long all_bytes = 0;
+    
+    all_bytes += 2;
     Range* range;
-    send_all_bytes = 0;
-
     for (int i = 0; (range = rg.get(i)) && (i < req->resp.numPart); ++i)
     {
-        all_bytes += (range->part_len);
+        all_bytes += (range->part_len + 2);
+        all_bytes += create_multipart_head(req, range, req->resp.respContentType, buf, sizeof(buf));
     }
+    all_bytes += snprintf(buf, sizeof(buf), "--%s--\r\n", boundary);
+    req->resp.respContentLength = all_bytes;
 
-    if (send_response_headers(req, NULL))
+    String hdrs(256, 0);
+    try
+    {
+        hdrs << "Content-Type: multipart/byteranges; boundary=" << boundary << "\r\n";
+        hdrs << "Content-Length: " << all_bytes << "\r\n";
+    }
+    catch (...)
+    {
+        print_err(req, "<%s:%d> Error create response headers\n", __func__, __LINE__);
+        return -1;
+    }
+    
+    if (send_response_headers(req, &hdrs))
     {
         return -1;
     }
 
-    wstring path;
-    (path += conf->wRootDir) += req->wDecodeUri;
-    snprintf(req->resp.respContentType, sizeof(req->resp.respContentType), "%s",
-        content_type(path.c_str()));
-
     for (int i = 0; (range = rg.get(i)) && (i < req->resp.numPart); ++i)
     {
-        if ((n = create_multipart_head(buf, req, range, sizeof(buf))))
+        if ((n = create_multipart_head(req, range, req->resp.respContentType, buf, sizeof(buf))) == 0)
         {
             print_err(req, "<%s:%d> Error create_multipart_head()=%d\n", __func__, __LINE__, n);
             return -1;
@@ -351,7 +373,7 @@ const char* status_resp(int st)
     return "";
 }
 //========================== send_message ==============================
-void send_message(Connect* req, const char* msg, Array <string>* hdrs)
+void send_message(Connect* req, const char* msg, String* hdrs)
 {
     ostringstream html;
  //print_err(req, "<%s:%d> ---\n", __func__, __LINE__);
@@ -396,38 +418,41 @@ void send_message(Connect* req, const char* msg, Array <string>* hdrs)
     }
 }
 /*====================================================================*/
-int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len_buf)
+int create_multipart_head(Connect* req, struct Range* ranges, const char* contentType, char* buf, int len_buf)
 {
-    int n;
+    int n, all = 0;
 
     n = snprintf(buf, len_buf, "--%s\r\n", boundary);
     buf += n;
     len_buf -= n;
+    all += n;
 
-    if (req->resp.respContentType[0] && (len_buf > 0))
+    if (contentType && (len_buf > 0))
     {
-        n = snprintf(buf, len_buf, "Content-Type: %s\r\n", req->resp.respContentType);
+        n = snprintf(buf, len_buf, "Content-Type: %s\r\n", contentType);
         buf += n;
         len_buf -= n;
+        all += n;
     }
     else
-        return 2;
+        return 0;
 
-    if ((req->resp.numPart > 1) && (len_buf > 0))
+    if (len_buf > 0)
     {
-        n = snprintf(buf + strlen(buf), len_buf - strlen(buf),
-            "Content-Range: bytes %I64d-%I64d/%I64d\r\n\r\n",
+        n = snprintf(buf, len_buf,
+            "Content-Range: bytes %lld-%lld/%lld\r\n\r\n",
             ranges->start, ranges->end, req->resp.fileSize);
         buf += n;
         len_buf -= n;
+        all += n;
     }
     else
-        return 3;
+        return 0;
 
-    return 0;
+    return all;
 }
 /*====================================================================*/
-int send_response_headers(Connect* req, Array <string>* hdrs)
+int send_response_headers(Connect* req, String* hdrs)
 {
     ostringstream ss;
 
@@ -450,14 +475,16 @@ int send_response_headers(Connect* req, Array <string>* hdrs)
         ss << "Content-Range: bytes " << req->resp.offset << "-"
             << (req->resp.offset + req->resp.respContentLength - 1)
             << "/" << req->resp.fileSize << "\r\n";
+        if (req->resp.respContentType)
+            ss << "Content-Type: " << req->resp.respContentType << "\r\n";
         ss << "Content-Length: " << req->resp.respContentLength << "\r\n";
     }
-    else
+    else if (req->resp.numPart == 0)
     {
-        if ((req->resp.numPart <= 1) && (req->resp.respContentLength != -1))
-        {
+        if (req->resp.respContentType)
+            ss << "Content-Type: " << req->resp.respContentType << "\r\n";
+        if (req->resp.respContentLength >= 0)
             ss << "Content-Length: " << req->resp.respContentLength << "\r\n";
-        }
     }
 
     if (req->resp.respContentType[0])
@@ -478,12 +505,8 @@ int send_response_headers(Connect* req, Array <string>* hdrs)
     /*----------------------------------------------------------------*/
     if (hdrs)
     {
-        string* p;
-        for (int i = 0; (p = hdrs->get(i)); ++i)
-        {
-//            print_err(req, "<%s:%d> [%s]\n", __func__, __LINE__, p->c_str());
-            ss << *p << "\r\n";
-        }
+//print_err(req, "<%s:%d> [%s]\n", __func__, __LINE__, p->c_str());
+        ss << hdrs->ptr();
     }
 
     if (req->resp.numPart > 1)

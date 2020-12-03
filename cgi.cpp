@@ -1,4 +1,6 @@
-#include "chunk.h"
+#include "classes.h"
+
+using namespace std;
 
 int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd);
 //======================================================================
@@ -411,7 +413,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
 
     if (n == 0)
         broken_pipe = true;
-    Array <string> hdrs(16);
+    String hdrs(256, 0);
     buf[ReadFromScript] = 0;
     //-------------------create headers of response---------------------
     ptr_buf = buf;
@@ -468,7 +470,11 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
             continue;
         }
 
-        if (hdrs(s))
+        try
+        {
+            hdrs << s << "\r\n";
+        }
+        catch (...)
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;
@@ -481,7 +487,11 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
 
     if (chunked)
     {
-        if (hdrs("Transfer-Encoding: chunked"))
+        try
+        {
+            hdrs << "Transfer-Encoding: chunked\r\n";
+        }
+        catch (...)
         {
             return -1;
         }

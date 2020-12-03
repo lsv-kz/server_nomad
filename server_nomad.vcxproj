@@ -130,9 +130,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="chunk.h" />
     <ClInclude Include="classes.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="String.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cgi.cpp" />

@@ -1,4 +1,6 @@
-#include "chunk.h"
+#include "classes.h"
+
+using namespace std;
 
 #define FCGI_RESPONDER  1
 //#define FCGI_AUTHORIZER 2
@@ -313,7 +315,7 @@ int fcgi_get_header(SOCKET fcgi_sock, fcgi_header * header)
     return n;
 }
 //======================================================================
-int fcgi_chunk(Connect* req, Array<string>* hdrs, SOCKET fcgi_sock, fcgi_header * header)
+int fcgi_chunk(Connect* req, String* hdrs, SOCKET fcgi_sock, fcgi_header * header)
 {
     int ret;
     int chunked = ((req->httpProt == HTTP11) && req->connKeepAlive) ? 1 : 0;
@@ -325,7 +327,11 @@ int fcgi_chunk(Connect* req, Array<string>* hdrs, SOCKET fcgi_sock, fcgi_header 
 
     if (chunked)
     {
-        if ((*hdrs)("Transfer-Encoding: chunked"))
+        try
+        {
+            (*hdrs) << "Transfer-Encoding: chunked\r\n";
+        }
+        catch (...)
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -RS500;
@@ -458,7 +464,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
         }
     }
     //-------------------------- read headers --------------------------
-    Array <string> hdrs(16);
+    String hdrs(256, 0);
     for (; header.len > 0; )
     {
         char* p2;
@@ -502,12 +508,17 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
                 continue;
             }
 
-            if (hdrs(line))
+            try
+            {
+                hdrs << line << "\r\n";
+            }
+            catch (...)
             {
                 print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
             }
-            else if (strlcmp_case(line, "Content-Type", 12))
+            
+            if (strlcmp_case(line, "Content-Type", 12))
             {
                 print_err(req, "<%s:%d> %s\n", __func__, __LINE__, line);
             }

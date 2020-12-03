@@ -1,12 +1,10 @@
-#include "main.h"
-
-using namespace std;
+#include "classes.h"
 
 //======================================================================
-int Ranges::check_range()
+int ArrayRanges::check_ranges()
 {
     int numPart, maxIndex, n;
-    Range* r = t;
+    Range* r = range;
     numPart = lenBuf;
     maxIndex = n = numPart - 1;
 
@@ -51,10 +49,10 @@ int Ranges::check_range()
     return numPart;
 }
 //======================================================================
-int Ranges::check_str_range(char* sRange, int sizeStr)
+int ArrayRanges::parse_ranges(char* sRange, int sizeStr)
 {
     char* p0 = sRange, * p;
-    stringstream ss;
+    std::stringstream ss;
     long long size = sizeFile;
     int numPart = 0;
 
@@ -87,7 +85,6 @@ int Ranges::check_str_range(char* sRange, int sizeStr)
             }
             else
             {
-                err = "112";
                 return 0;
             }
         }
@@ -103,13 +100,11 @@ int Ranges::check_str_range(char* sRange, int sizeStr)
             }
             else
             {
-                err = "128";
                 return 0;
             }
         }
         else
         {
-            err = "134";
             break;
         }
 
@@ -133,17 +128,16 @@ int Ranges::check_str_range(char* sRange, int sizeStr)
         memcpy(sRange, ss.str().c_str(), len + 1);
     else
     {
-        err = "158";
         numPart = 0;
     }
 
     return numPart;
 }
 //======================================================================
-int Ranges::parse_ranges(char* s, int sizeStr, long long sz)
+int ArrayRanges::create_ranges(char* s, int sizeStr, long long sz)
 {
     sizeFile = sz;
-    numPart = check_str_range(s, sizeStr);
+    numPart = parse_ranges(s, sizeStr);
     if (numPart > 0)
     {
         if (resize(numPart))
@@ -160,10 +154,11 @@ int Ranges::parse_ranges(char* s, int sizeStr, long long sz)
             p++;
             end = strtoll(p, &p, 10);
             p++;
-            (*this)({ start, end, end - start + 1 });
+            (*this) << Range{ start, end, end - start + 1 };
         }
 
-        numPart = check_range();
+        if (numPart > 1)
+            numPart = check_ranges();
     }
     return numPart;
 }

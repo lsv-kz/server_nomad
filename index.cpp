@@ -1,4 +1,6 @@
-#include "chunk.h"
+#include "classes.h"
+
+using namespace std;
 
 struct stFile
 {
@@ -101,16 +103,21 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     ClChunked chunk_buf(req->clientSocket, chunked);
 
     req->resp.respStatus = RS200;
-    Array <string> hdrs(8);
+    String hdrs(80, 0);
     if (chunked)
     {
-        if (hdrs("Transfer-Encoding: chunked"))
+        try
+        {
+            hdrs << "Transfer-Encoding: chunked\r\n";
+            hdrs << "Content-Type: text/html; charset=utf-8\r\n";
+        }
+        catch (...)
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;
         }
     }
-    snprintf(req->resp.respContentType, sizeof(req->resp.respContentType), "text/html; charset=utf-8");
+    
     req->resp.respContentLength = -1;
     if (send_response_headers(req, &hdrs))
     {

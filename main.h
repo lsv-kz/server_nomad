@@ -37,7 +37,7 @@
 #include <direct.h>
 #include <process.h>
 
-#include "classes.h"
+#include "String.h"
 
 #define     MAX_NAME           256
 #define     LEN_BUF_REQUEST    8192
@@ -487,9 +487,8 @@ int utf16_to_utf8(std::string& s, const wchar_t* ws);
 int utf8_to_utf16(char* u8, std::wstring& ws);
 int utf8_to_utf16(std::string& u8, std::wstring& ws);
 //-------------------- send_resp ---------------------------------------
-void send_message(Connect* req, const char* msg, Array <std::string>* hdrs);
-int create_multipart_head(char* buf, Connect* req, struct Range* ranges, int len_buf);
-int send_response_headers(Connect* req, Array <std::string>* hdrs);
+void send_message(Connect* req, const char* msg, String* hdrs);
+int send_response_headers(Connect* req, String* hdrs);
 //----------------------------------------------------------------------
 int read_timeout(SOCKET sock, char* buf, int len, int timeout);
 int write_timeout(SOCKET sock, const char* buf, size_t len, int timeout);

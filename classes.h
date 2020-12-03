@@ -1,242 +1,8 @@
 #ifndef CLASSES_H_
 #define CLASSES_H_
-#include <iostream>
-#include <cstring>
 
+#include "main.h"
 
-//----------------------------------------------------------------------
-class String
-{
-protected:
-    const int ADDITION = 32;
-    char *buf = NULL;
-    unsigned long lenBuf = 0;
-    unsigned long sizeBuf = 0;
-    
-    void append(const String & s)
-    {
-        if (s.lenBuf == 0) return;
-        if ((lenBuf + s.lenBuf) >= sizeBuf)
-            if (resize(lenBuf + s.lenBuf + 1 + ADDITION)) return;
-        if (buf)
-        {
-            memcpy(buf + lenBuf, s.buf, s.lenBuf);
-            lenBuf += s.lenBuf;
-            *(buf + lenBuf) = 0;
-        }
-    }
-    
-    void append(const char * s)
-    {
-        if (!s) return;
-        unsigned long len = strlen(s);
-        if ((lenBuf + len) >= sizeBuf)
-            if (resize(lenBuf + len + 1 + ADDITION)) return;
-        if (buf)
-        {
-            memcpy(buf + lenBuf, s, len);
-            lenBuf += len;
-            *(buf + lenBuf) = 0;
-        }
-    }
-    
-    void append(const std::string & s)
-    {
-        if (s.size() == 0) return;
-        unsigned long len = s.size();
-        if ((lenBuf + len) >= sizeBuf)
-            if (resize(lenBuf + len + 1 + ADDITION)) return;
-        if (buf)
-        {
-            memcpy(buf + lenBuf, s.c_str(), len);
-            lenBuf += len;
-            *(buf + lenBuf) = 0;
-        }
-    }
-
-public:
-    String()
-    {
-        sizeBuf = lenBuf = 0;
-        buf = NULL;
-    }
-    
-    String(const char * s)
-    {
-        sizeBuf = lenBuf = 0;
-        buf = NULL;
-        append(s);
-    }
-    
-    String(const std::string& s)
-    {
-        sizeBuf = lenBuf = 0;
-        buf = NULL;
-        append(s);
-    }
-    
-    String(const String& b)
-    {
-        sizeBuf = lenBuf = 0;
-        buf = NULL;
-        append(b);
-    }
-    
-    String(String&& b)
-    {
-        buf = b.buf;
-        lenBuf = b.lenBuf;
-        sizeBuf = b.sizeBuf;
-            
-        b.buf = NULL;
-        b.sizeBuf = b.lenBuf = 0;
-    }
-    
-    ~String()
-    {
-        if (buf)
-            delete [] buf;
-    }
-    
-    int resize(unsigned int n)
-    {
-        if (n <= sizeBuf) return 1;
-        char *newBuf;
-        newBuf = new(std::nothrow) char [n];
-        if (!newBuf)
-            return 1;
-        if (buf)
-        {
-            memcpy(newBuf, buf, lenBuf);
-            delete [] buf;
-        }
-        *(newBuf + lenBuf) = '\0';
-        sizeBuf = n;
-        buf = newBuf;
-        return 0;
-    }
-//----------------------- = ----------------------------
-    String & operator = (const String& b)
-    {
-        if (this != &b)
-        {
-            if (buf) buf[lenBuf = 0] = '\0';
-            append(b);
-        }
-        return *this;
-    }
-
-    String & operator = (const char *s)
-    {
-        if (buf) buf[lenBuf = 0] = '\0';
-        append(s);
-        return *this;
-    }
-    
-    String & operator = (const std::string& s)
-    {
-        if (buf) buf[lenBuf = 0] = '\0';
-        append(s);
-        return *this;
-    }
-//------------------- const char * -----------------
-    String & operator << (const char *s)
-    {
-        append(s);
-        return *this;
-    }
-    
-    String & operator + (const char *s)
-    {
-        append(s);
-        return *this;
-    }
-    
-    String & operator += (const char *s)
-    {
-        append(s);
-        return *this;
-    }
-//--------------------- std::string& ----------------------
-    String & operator << (const std::string& s)
-    {
-        append(s);
-        return *this;
-    }
-    
-    String & operator + (const std::string& s)
-    {
-        append(s);
-        return *this;
-    }
-    
-    String & operator += (const std::string& s)
-    {
-        append(s);
-        return *this;
-    }
-//----------------- const Buff& -----------------
-    String & operator << (const String& b)
-    {
-        append(b);
-        return *this;
-    }
-    
-    String & operator + (const String& b)
-    {
-        append(b);
-        return *this;
-    }
-    
-    String & operator += (const String& b)
-    {
-        append(b);
-        return *this;
-    }
-//--------------------------------------
-    String & operator () (const char *s1, const char *s2)
-    {
-        unsigned long len1 = strlen(s1), len2 = strlen(s2);
-        if ((lenBuf + len1 + len2) >= sizeBuf)
-            resize(lenBuf + len1 + len2 + 1);
-        if (buf)
-        {
-            memcpy(buf + lenBuf, s1, len1);
-            lenBuf += len1;
-            memcpy(buf + lenBuf, s2, len2);
-            lenBuf += len2;
-            *(buf + lenBuf) = 0;
-        }
-        return *this;
-    }
-
-    String & operator << (const long long ll)
-    {
-        const unsigned long sz = 21;
-        char s[sz];
-        snprintf(s, sz, "%lld", ll);
-        append(s);
-        return *this;
-    }
-    
-    void append(const char *s, unsigned long n)
-    {
-        unsigned int len = strlen(s);
-        if (n > len) n = len;
-        if ((lenBuf + n) >= sizeBuf)
-            resize(lenBuf + n + 1);
-        if (buf)
-        {
-            memcpy(buf + lenBuf, s, n);
-            lenBuf += n;
-            *(buf + lenBuf) = 0;
-        }
-    }
-
-    const char *ptr() { return (buf ? buf : ""); }
-    unsigned long len() { return lenBuf; }
-    unsigned long size() { return sizeBuf; }
-};
 //======================================================================
 template <typename T>
 class Array
@@ -349,18 +115,293 @@ struct Range {
     long long end;
     long long part_len;
 };
-
-class Ranges : public Array <Range>
+//----------------------------------------------------------------------
+class ArrayRanges
 {
 protected:
+    const int ADDITION = 8;
+    Range* range;
+    unsigned int sizeBuf;
+    unsigned int lenBuf;
     int numPart;
     long long sizeFile;
 
-public:
+    int check_ranges();
+    int parse_ranges(char* sRange, int sizeStr);
 
-    int check_range();
-    int check_str_range(char *sRange, int sizeStr);
-    int parse_ranges(char *s, int sizeStr, long long sz);
+public:
+    ArrayRanges(const ArrayRanges&) = delete;
+    ArrayRanges()
+    {
+        sizeBuf = lenBuf = 0;
+        range = NULL;
+    }
+
+    ~ArrayRanges()
+    {
+        if (range)
+        {
+            delete[] range;
+        }
+    }
+
+    int resize(unsigned int n)
+    {
+        if (n <= lenBuf)
+            return 1;
+        Range * tmp = new(std::nothrow) Range[n];
+        if (!tmp)
+            return 1;
+        for (unsigned int c = 0; c < lenBuf; ++c)
+            tmp[c] = range[c];
+        if (range)
+            delete[] range;
+        range = tmp;
+        sizeBuf = n;
+        return 0;
+    }
+
+    ArrayRanges & operator << (const Range & val)
+    {
+        if (lenBuf >= sizeBuf)
+            if (resize(sizeBuf + ADDITION)) throw ENOMEM;
+        range[lenBuf++] = val;
+        return *this;
+    }
+
+    Range * get(unsigned int i)
+    {
+        if (i < lenBuf)
+            return range + i;
+        else
+            return NULL;
+    }
+
+    int len() { return lenBuf; }
+    int size() { return sizeBuf; }
+
+    int create_ranges(char* s, int sizeStr, long long sz);
 };
+//===============================================================
+const int CHUNK_SIZE_BUF = 4096;
+const int MAX_LEN_SIZE_CHUNK = 6;
+//======================================================================
+class ClChunked
+{
+    int i, mode, allSend;
+    SOCKET sock;
+    char buf[CHUNK_SIZE_BUF + MAX_LEN_SIZE_CHUNK + 10];
+    ClChunked() {};
+    //------------------------------------------------------------------
+    int send_chunk(int size)
+    {
+        const char* p;
+        int len;
+        if (mode)
+        {
+            std::stringstream ss;
+            ss << std::uppercase << std::hex << size << "\r\n" << std::dec;
+            len = ss.str().size();
+            int n = MAX_LEN_SIZE_CHUNK - len;
+            if (n < 0)
+                return -1;
+            memcpy(buf + n, ss.str().c_str(), len);
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, "\r\n", 2);
+            i += 2;
+            p = buf + n;
+            len += i;
+        }
+        else
+        {
+            p = buf + MAX_LEN_SIZE_CHUNK;
+            len = i;
+        }
+
+        int ret = write_timeout(sock, p, len, conf->TimeOut);
+
+        i = 0;
+        if (ret > 0)
+            allSend += ret;
+        return ret;
+    }
+public:
+    //---------------------------------------------------------------
+    ClChunked(SOCKET s, int m) { sock = s; mode = m; i = allSend = 0; }
+    //------------------------------------------------------------------
+    ClChunked& operator << (const long long ll)
+    {
+        std::ostringstream ss;
+        ss << ll;
+        int n = 0, len = ss.str().size();
+        while (CHUNK_SIZE_BUF < (i + len))
+        {
+            int l = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, ss.str().c_str() + n, l);
+            i += l;
+            len -= l;
+            n += l;
+            int ret = send_chunk(i);
+            if (ret < 0)
+                throw ret;
+        }
+
+        memcpy(buf + MAX_LEN_SIZE_CHUNK + i, ss.str().c_str() + n, len);
+        i += len;
+        return *this;
+    }
+    //------------------------------------------------------------------
+    ClChunked& operator << (const char* s)
+    {
+        if (!s) throw __LINE__;
+        int n = 0, len = strlen(s);
+        while (CHUNK_SIZE_BUF < (i + len))
+        {
+            int l = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, l);
+            i += l;
+            len -= l;
+            n += l;
+            int ret = send_chunk(i);
+            if (ret < 0)
+                throw ret;
+        }
+
+        memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, len);
+        i += len;
+        return *this;
+    }
+    //------------------------------------------------------------------
+    ClChunked& operator << (const std::string& s)
+    {
+        int n = 0, len = s.size();
+        if (len == 0) return *this;
+        while (CHUNK_SIZE_BUF < (i + len))
+        {
+            int l = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.c_str() + n, l);
+            i += l;
+            len -= l;
+            n += l;
+            int ret = send_chunk(i);
+            if (ret < 0)
+                throw ret;
+        }
+        memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.c_str() + n, len);
+        i += len;
+        return *this;
+    }
+    //------------------------------------------------------------------
+    int add_arr(const char* s, int len)
+    {
+        if (!s) return -1;
+        int n = 0;
+        while (CHUNK_SIZE_BUF < (i + len))
+        {
+            int l = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, l);
+            i += l;
+            len -= l;
+            n += l;
+            int ret = send_chunk(i);
+            if (ret < 0)
+                return ret;
+        }
+
+        memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, len);
+        i += len;
+        return 0;
+    }
+    //------------------------------------------------------------------
+    int cgi_to_client(PIPENAMED* Pipe, int sizeBuf)
+    {
+        while (1)
+        {
+            if (CHUNK_SIZE_BUF <= i)
+            {
+                int ret = send_chunk(i);
+                if (ret < 0)
+                    return ret;
+            }
+
+            int size = CHUNK_SIZE_BUF - i, rd;
+            int ret = ReadFromPipe(Pipe, buf + MAX_LEN_SIZE_CHUNK + i, size, &rd, sizeBuf, conf->TimeOutCGI);
+            if (ret == 0) // BROKEN_PIPE
+            {
+                print_err("<%s:%d> ret=%d, rd=%d\n", __func__, __LINE__, ret, rd);
+                if (rd > 0)
+                {
+                    i += rd;
+                }
+                break;
+            }
+            else if (ret < 0) // ERROR
+            {
+                i = 0;
+                return ret;
+            }
+            else
+            {
+                i += rd;
+                if (rd != size)
+                {
+                    print_err("<%s:%d> %d rd != size %d\n", __func__, __LINE__, rd, size);
+                }
+            }
+        }
+
+        return 0;
+    }
+    //------------------------------------------------------------------
+    int fcgi_to_client(SOCKET fcgi_sock, int len)
+    {
+        while (len > 0)
+        {
+            if (CHUNK_SIZE_BUF <= i)
+            {
+                int ret = send_chunk(i);
+                if (ret < 0)
+                    return ret;
+            }
+
+            int rd = (len < (CHUNK_SIZE_BUF - i)) ? len : (CHUNK_SIZE_BUF - i);
+            int ret = read_timeout(fcgi_sock, buf + MAX_LEN_SIZE_CHUNK + i, rd, conf->TimeOutCGI);
+            if (ret <= 0)
+            {
+                print_err("<%s:%d> ret=%d\n", __func__, __LINE__, ret);
+                i = 0;
+                return -1;
+            }
+            else if (ret != rd)
+            {
+                print_err("<%s:%d> ret != rd\n", __func__, __LINE__);
+                i = 0;
+                return -1;
+            }
+
+            i += ret;
+            len -= ret;
+        }
+
+        return 0;
+    }
+    //------------------------------------------------------------------
+    int end()
+    {
+        if (mode)
+        {
+            int n = i;
+            const char* s = "\r\n0\r\n";
+            int len = strlen(s);
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s, len);
+            i += len;
+            return send_chunk(n);
+        }
+        else
+            return send_chunk(0);
+    }
+    //------------------------------------------------------------------
+    int all() { return allSend; }
+};
+
 
 #endif
