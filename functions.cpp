@@ -55,26 +55,26 @@ string get_time()
 {
     __time64_t now = 0;
     struct tm t;
-    char cs[40];
+    char s[40];
 
     _time64(&now);
     _gmtime64_s(&t, &now);
  
-    strftime(cs, sizeof(cs), "%a, %d %b %Y %H:%M:%S GMT", &t);
-    return cs;
+    strftime(s, sizeof(s), "%a, %d %b %Y %H:%M:%S GMT", &t);
+    return s;
 }
 //======================================================================
-void get_time(string& s)
+void get_time(string& str)
 {
     __time64_t now = 0;
     struct tm t;
-    char cs[40];
+    char s[40];
 
     _time64(&now);
     _gmtime64_s(&t, &now);
  
-    strftime(cs, sizeof(cs), "%a, %d %b %Y %H:%M:%S GMT", &t);
-    s = cs;
+    strftime(s, sizeof(s), "%a, %d %b %Y %H:%M:%S GMT", &t);
+    str = s;
 }
 //======================================================================
 char* strstr_case(const char* str1, const char* str2)
