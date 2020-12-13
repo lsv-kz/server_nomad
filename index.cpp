@@ -43,10 +43,7 @@ bool compareVec(stFile s1, stFile s2)
 }
 //======================================================================
 int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
-{
-    if (req->reqMethod == M_HEAD)
-        return -RS405;
-    
+{    
     int dirs, files;
     WIN32_FIND_DATAW ffd;
     HANDLE hFind = INVALID_HANDLE_VALUE;
@@ -102,30 +99,36 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
 {
     int n;
     int dirs = vecDirs.size(), files = vecFiles.size();
-    int chunked = ((req->httpProt == HTTP11) && req->connKeepAlive) ? 1 : 0;
-    ClChunked chunk_buf(req->clientSocket, chunked);
+    int chunk;
+    if (req->reqMethod == M_HEAD)
+        chunk = NO_SEND;
+    else
+        chunk = ((req->httpProt == HTTP11) && req->connKeepAlive) ? SEND_CHUNK : SEND_NO_CHUNK;
+    
+    ClChunked chunk_buf(req->clientSocket, chunk);
 
     req->resp.respStatus = RS200;
     String hdrs(80, 0);
-    if (chunked)
+    if (hdrs.error())
     {
-        try
+        print_err(req, "<%s:%d> Error create String object\n", __func__, __LINE__);
+        return -RS500;
+    }
+
+    if (chunk == SEND_CHUNK)
+    {
+        hdrs << "Transfer-Encoding: chunked\r\n";      
+    }
+
+    hdrs << "Content-Type: text/html; charset=utf-8\r\n";
+    req->resp.respContentLength = -1;
+
+    if (chunk)
+    {
+        if (send_response_headers(req, &hdrs))
         {
-            hdrs << "Transfer-Encoding: chunked\r\n";
-            hdrs << "Content-Type: text/html; charset=utf-8\r\n";
-        }
-        catch (...)
-        {
-            print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;
         }
-    }
-    
-    req->resp.respContentLength = -1;
-    if (send_response_headers(req, &hdrs))
-    {
-        print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
-        return -1;
     }
 
     try
@@ -248,12 +251,23 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     }
     //------------------------------------------------------------------
     n = chunk_buf.end();
-    req->resp.send_bytes = chunk_buf.all();
+    req->resp.respContentLength = chunk_buf.all();
     if (n < 0)
     {
         print_err(req, "<%s:%d>   Error chunk_buf.end(): %d\n", __func__, __LINE__, n);
         return -1;
     }
+
+    if (chunk == NO_SEND)
+    {
+        if (send_response_headers(req, &hdrs))
+        {
+            print_err("%d<%s:%d> Error send_response_headers()\n", req->numChld, __func__, __LINE__);
+            return -1;
+        }
+    }
+    else
+        req->resp.send_bytes = req->resp.respContentLength;
 
     return 0;
 }

@@ -190,7 +190,12 @@ int cgi(Connect* req)
 
     env.add("SERVER_SOFTWARE", conf->ServerSoftware.c_str());
     env.add("GATEWAY_INTERFACE", "CGI/1.1");
-    env.add("REQUEST_METHOD", get_str_method(req->reqMethod));
+
+    if (req->reqMethod == M_HEAD)
+        env.add("REQUEST_METHOD", get_str_method(M_GET));
+    else
+        env.add("REQUEST_METHOD", get_str_method(req->reqMethod));
+    
     env.add("REMOTE_HOST", req->remoteAddr);
     env.add("SERVER_PROTOCOL", get_str_http_prot(req->httpProt));
 
@@ -398,8 +403,13 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
     int n, ReadFromScript = 0;
     char buf[512], * ptr_buf;
     bool broken_pipe = false;
-    int chunked = ((req->httpProt == HTTP11) && req->connKeepAlive) ? 1 : 0;
-    ClChunked chunk(req->clientSocket, chunked);
+    int chunk_mode;
+    if (req->reqMethod == M_HEAD)
+        chunk_mode = NO_SEND;
+    else
+        chunk_mode = ((req->httpProt == HTTP11) && req->connKeepAlive) ? SEND_CHUNK : SEND_NO_CHUNK;
+
+    ClChunked chunk(req->clientSocket, chunk_mode);
     //------------ read from script ------------
     req->resp.respStatus = RS200;
     n = ReadFromPipe(Pipe, buf, sizeof(buf) - 1, &ReadFromScript, maxRd, conf->TimeOutCGI);
@@ -414,6 +424,11 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
     if (n == 0)
         broken_pipe = true;
     String hdrs(256, 0);
+    if (hdrs.error())
+    {
+        print_err(req, "<%s:%d> Error create String object\n", __func__, __LINE__);
+        return -1;
+    }
     buf[ReadFromScript] = 0;
     //-------------------create headers of response---------------------
     ptr_buf = buf;
@@ -470,11 +485,8 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
             continue;
         }
 
-        try
-        {
-            hdrs << s << "\r\n";
-        }
-        catch (...)
+        hdrs << s << "\r\n";
+        if (hdrs.error())
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
             return -1;
@@ -485,16 +497,27 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
     req->resp.respContentType[0] = 0;
     req->resp.respContentLength = -1;
 
-    if (chunked)
+    if (req->reqMethod == M_HEAD)
     {
-        try
+        int n = cgi_to_cosmos(Pipe, maxRd, conf->TimeOutCGI);
+        if (n < 0)
         {
-            hdrs << "Transfer-Encoding: chunked\r\n";
-        }
-        catch (...)
-        {
+            print_err("%d<%s:%d> Error send_header_response()\n", req->numChld, __func__, __LINE__);
             return -1;
         }
+        req->resp.respContentLength = ReadFromScript + n;
+
+        if (send_response_headers(req, &hdrs))
+        {
+            print_err("%d<%s:%d> Error send_header_response()\n", req->numChld, __func__, __LINE__);
+        }
+        return 0;
+    }
+
+
+    if (chunk_mode == SEND_CHUNK)
+    {
+        hdrs << "Transfer-Encoding: chunked\r\n";
     }
 
     if (send_response_headers(req, &hdrs))
@@ -502,6 +525,10 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
         return -1;
     }
 
+    if (req->resp.respStatus == RS204)
+    {
+        return 0;
+    }
     //------------------ send entity to client -------------------------
     if (ReadFromScript > 0)
     {

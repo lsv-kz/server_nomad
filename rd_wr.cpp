@@ -238,6 +238,34 @@ int WriteToPipe(PIPENAMED* Pipe, const char* buf, int lenBuf, int sizePipeBuf, i
     return allWR;
 }
 //======================================================================
+int cgi_to_cosmos(PIPENAMED* Pipe, int maxRd, int timeout)
+{
+    int wr_bytes = 0;
+    int rd;
+    char buf[1024];
+
+    for (; ; )
+    {
+        int ret = ReadFromPipe(Pipe, buf, sizeof(buf) - 1, &rd, maxRd, timeout);
+        if (ret == 0)
+        {
+            wr_bytes += rd;
+            break;
+        }
+        else if (ret < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+        else if (rd == 0)
+            break;
+        wr_bytes += rd;
+    }
+
+    return wr_bytes;
+}
+//======================================================================
 long long client_to_script(SOCKET sock, PIPENAMED* Pipe, long long cont_len, int sizePipeBuf, int timeout)
 {
     long long wr_bytes;

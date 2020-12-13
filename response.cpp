@@ -20,8 +20,6 @@ int response(RequestManager* ReqMan, Connect* req)
 {
     if ((strstr(req->decodeUri, ".php")))
     {
-        if (req->reqMethod == M_HEAD)
-            return -RS405;
         int ret;
         if ((conf->usePHP != "php-cgi") && (conf->usePHP != "php-fpm"))
         {
@@ -46,6 +44,8 @@ int response(RequestManager* ReqMan, Connect* req)
         }
         else if (conf->usePHP == "php-fpm")
         {
+            if (req->reqMethod == M_HEAD)
+                return -RS405;
             req->resp.scriptType = php_fpm;
             ret = fcgi(req);
             req->wScriptName = NULL;
@@ -56,8 +56,6 @@ int response(RequestManager* ReqMan, Connect* req)
     if (!strncmp(req->decodeUri, "/cgi-bin/", 9)
         || !strncmp(req->decodeUri, "/cgi/", 5))
     {
-        if (req->reqMethod == M_HEAD)
-            return -RS405;
         req->resp.scriptType = cgi_ex;
         wstring s = req->wDecodeUri;
         req->wScriptName = s.c_str();
@@ -121,7 +119,7 @@ int response(RequestManager* ReqMan, Connect* req)
                 return -1;
             }
 
-            send_message(req, s.ptr(), &hdrs);
+            send_message(req, s.str(), &hdrs);
             return 0;
         }
         //--------------------------------------------------------------
@@ -510,7 +508,7 @@ int send_response_headers(Connect* req, String* hdrs)
     if (hdrs)
     {
 //print_err(req, "<%s:%d> [%s]\n", __func__, __LINE__, p->c_str());
-        ss << hdrs->ptr();
+        ss << hdrs->str();
     }
 
     if (req->resp.numPart > 1)

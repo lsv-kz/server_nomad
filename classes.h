@@ -185,19 +185,19 @@ public:
 //===============================================================
 const int CHUNK_SIZE_BUF = 4096;
 const int MAX_LEN_SIZE_CHUNK = 6;
+enum mode_chunk { NO_SEND = 0, SEND_NO_CHUNK, SEND_CHUNK };
 //======================================================================
 class ClChunked
 {
     int i, mode, allSend;
     SOCKET sock;
     char buf[CHUNK_SIZE_BUF + MAX_LEN_SIZE_CHUNK + 10];
-    ClChunked() {};
     //------------------------------------------------------------------
     int send_chunk(int size)
     {
         const char* p;
         int len;
-        if (mode)
+        if (mode == SEND_CHUNK)
         {
             std::stringstream ss;
             ss << std::uppercase << std::hex << size << "\r\n" << std::dec;
@@ -225,6 +225,7 @@ class ClChunked
         return ret;
     }
 public:
+    ClChunked() { mode = NO_SEND; allSend = i = 0; };
     //---------------------------------------------------------------
     ClChunked(SOCKET s, int m) { sock = s; mode = m; i = allSend = 0; }
     //------------------------------------------------------------------
@@ -233,6 +234,12 @@ public:
         std::ostringstream ss;
         ss << ll;
         int n = 0, len = ss.str().size();
+        if (mode == NO_SEND)
+        {
+            allSend += len;
+            return *this;
+        }
+
         while (CHUNK_SIZE_BUF < (i + len))
         {
             int l = CHUNK_SIZE_BUF - i;
@@ -254,6 +261,12 @@ public:
     {
         if (!s) throw __LINE__;
         int n = 0, len = strlen(s);
+        if (mode == NO_SEND)
+        {
+            allSend += len;
+            return *this;
+        }
+
         while (CHUNK_SIZE_BUF < (i + len))
         {
             int l = CHUNK_SIZE_BUF - i;
@@ -275,6 +288,12 @@ public:
     {
         int n = 0, len = s.size();
         if (len == 0) return *this;
+        if (mode == NO_SEND)
+        {
+            allSend += len;
+            return *this;
+        }
+        
         while (CHUNK_SIZE_BUF < (i + len))
         {
             int l = CHUNK_SIZE_BUF - i;
@@ -294,6 +313,12 @@ public:
     int add_arr(const char* s, int len)
     {
         if (!s) return -1;
+        if (mode == NO_SEND)
+        {
+            allSend += len;
+            return 0;
+        }
+
         int n = 0;
         while (CHUNK_SIZE_BUF < (i + len))
         {
@@ -354,6 +379,13 @@ public:
     //------------------------------------------------------------------
     int fcgi_to_client(SOCKET fcgi_sock, int len)
     {
+        if (mode == NO_SEND)
+        {
+            allSend += len;
+      ///////      fcgi_to_cosmos(fcgi_sock, len, conf->TimeoutCGI);
+            return 0;
+        }
+
         while (len > 0)
         {
             if (CHUNK_SIZE_BUF <= i)
@@ -387,7 +419,7 @@ public:
     //------------------------------------------------------------------
     int end()
     {
-        if (mode)
+        if (mode == SEND_CHUNK)
         {
             int n = i;
             const char* s = "\r\n0\r\n";
@@ -396,8 +428,10 @@ public:
             i += len;
             return send_chunk(n);
         }
-        else
+        else if (mode == SEND_NO_CHUNK)
             return send_chunk(0);
+        else
+            return 0;
     }
     //------------------------------------------------------------------
     int all() { return allSend; }

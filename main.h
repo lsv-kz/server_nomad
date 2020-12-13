@@ -166,88 +166,6 @@ public:
     unsigned long size() { return size_buf; }
 };
 //----------------------------------------------------------------------
-/*template <typename T>
-class HeapArray
-{
-protected:
-    T* buf;
-    int size;
-    int bufInd;
-    int i;
-public:
-    HeapArray()
-    {
-        size = 0;
-        bufInd = 0;
-        buf = NULL;
-    }
-
-    HeapArray(int n)
-    {
-        size = n;
-        bufInd = 0;
-        buf = new(std::nothrow) T[n];
-    }
-
-    ~HeapArray()
-    {
-        if (buf) delete[] buf;
-    }
-
-    int add(const T& val)
-    {
-        if ((bufInd >= size) || (buf == NULL))
-        {
-            return -1;
-        }
-        buf[bufInd++] = val;
-        return 0;
-    }
-
-    T* ptr() { return buf; }
-    int len() { return bufInd; }
-    void resize(int n)
-    {
-        if (bufInd >= n)
-            return;
-        size = n;
-        if (!buf)
-        {
-            buf = new(std::nothrow) T[n];
-        }
-        else
-        {
-            T* tmp;
-            tmp = new(std::nothrow) T[n];
-            for (int c = 0; c < bufInd; ++c)
-            {
-                tmp[c] = buf[c];
-            }
-
-            delete[] buf;
-            buf = tmp;
-        }
-    }
-
-    void set() { i = 0; }
-
-    T* get()
-    {
-        if (i < bufInd)
-            return &buf[i++];
-        else
-            return NULL;
-    }
-
-    T* get(int n)
-    {
-        if ((i < bufInd) && (i < n))
-            return &buf[i++];
-        else
-            return NULL;
-    }
-};*/
-//----------------------------------------------------------------------
 typedef struct
 {
     OVERLAPPED oOverlap;
@@ -494,6 +412,9 @@ int read_timeout(SOCKET sock, char* buf, int len, int timeout);
 int write_timeout(SOCKET sock, const char* buf, size_t len, int timeout);
 int ReadFromPipe(PIPENAMED* Pipe, char* buf, int sizeBuf, int* allRD, int maxRd, int timeout);
 int WriteToPipe(PIPENAMED* Pipe, const char* buf, int lenBuf, int maxRd, int timeout);
+
+int cgi_to_cosmos(PIPENAMED* Pipe, int maxRd, int timeout);
+
 long long client_to_script(SOCKET sock, PIPENAMED* Pipe, long long cont_len, int sizePipeBuf, int timeout);
 int send_file_1(SOCKET sock, int fd_in, char* buf, int* size, long long offset, long long* cont_len);
 int send_file_2(SOCKET sock, int fd_in, char* buf, int size, long long offset);
