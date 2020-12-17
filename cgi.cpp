@@ -221,7 +221,7 @@ int cgi(Connect* req)
     }
     else if (req->resp.scriptType == cgi_ex)
     {
-        if (wcsstr(req->wScriptName, L".pl"))
+        if (wcsstr(req->wScriptName, L".pl") || wcsstr(req->wScriptName, L".cgi"))
         {
             commandLine = conf->wPerlPath;
             commandLine += L' ';
