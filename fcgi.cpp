@@ -464,7 +464,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
         }
     }
     //-------------------------- read headers --------------------------
-    String hdrs(256, 0);
+    String hdrs(256);
     for (; header.len > 0; )
     {
         char* p2;

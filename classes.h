@@ -225,7 +225,7 @@ class ClChunked
         return ret;
     }
 public:
-    ClChunked() { mode = NO_SEND; allSend = i = 0; };
+    ClChunked() = delete;
     //---------------------------------------------------------------
     ClChunked(SOCKET s, int m) { sock = s; mode = m; i = allSend = 0; }
     //------------------------------------------------------------------

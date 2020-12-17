@@ -423,7 +423,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
 
     if (n == 0)
         broken_pipe = true;
-    String hdrs(256, 0);
+    String hdrs(256);
     if (hdrs.error())
     {
         print_err(req, "<%s:%d> Error create String object\n", __func__, __LINE__);

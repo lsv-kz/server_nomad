@@ -97,7 +97,7 @@ int response(RequestManager* ReqMan, Connect* req)
             req->uri[req->uriLen + 1] = '\0';
             req->resp.respStatus = RS301;
 
-            String hdrs(127, 0);
+            String hdrs(127);
             try
             {
                 hdrs << "Location: " << req->uri << "\r\n";
@@ -108,7 +108,7 @@ int response(RequestManager* ReqMan, Connect* req)
                 return -RS500;
             }
 
-            String s(256, 0);
+            String s(256);
             try
             {
                 s << "The document has moved <a href=\"" << req->uri << "\">here</a>";
@@ -243,7 +243,7 @@ int send_multy_part(Connect* req, ArrayRanges& rg, int fd, char* rd_buf, int* si
     all_bytes += snprintf(buf, sizeof(buf), "--%s--\r\n", boundary);
     req->resp.respContentLength = all_bytes;
 
-    String hdrs(256, 0);
+    String hdrs(256);
     try
     {
         hdrs << "Content-Type: multipart/byteranges; boundary=" << boundary << "\r\n";
@@ -275,6 +275,7 @@ int send_multy_part(Connect* req, ArrayRanges& rg, int fd, char* rd_buf, int* si
                  __func__, __LINE__, send_all_bytes, all_bytes);
             return -1;
         }
+        send_all_bytes += n;
 
         len = range->part_len;
         n = send_file_1(req->clientSocket, fd, rd_buf, size, range->start, &range->part_len);
@@ -296,18 +297,20 @@ int send_multy_part(Connect* req, ArrayRanges& rg, int fd, char* rd_buf, int* si
                     __func__, __LINE__, send_all_bytes, all_bytes);
             return -1;
         }
+        send_all_bytes += n;
     }
 
     snprintf(buf, sizeof(buf), "--%s--\r\n", boundary);
     n = write_timeout(req->clientSocket, buf, strlen(buf), conf->TimeOut);
-    req->resp.send_bytes = send_all_bytes;
     if (n <= 0)
     {
+        req->resp.send_bytes = send_all_bytes;
         print_err(req, "<%s:%d> Error: write_timeout() %lld bytes from %lld bytes\n",
                 __func__, __LINE__, send_all_bytes, all_bytes);
         return -1;
     }
-
+    send_all_bytes += n;
+    req->resp.send_bytes = send_all_bytes;
     return 0;
 }
 /*====================================================================*/
@@ -456,68 +459,68 @@ int create_multipart_head(Connect* req, struct Range* ranges, const char* conten
 /*====================================================================*/
 int send_response_headers(Connect* req, String* hdrs)
 {
-    ostringstream ss;
-
     if (req->httpProt == HTTP09)
         return -1;
     else if ((req->httpProt == HTTP2) || (req->httpProt == 0))
         req->httpProt = HTTP11;
 
-    ss << get_str_http_prot(req->httpProt) << " " << status_resp(req->resp.respStatus) << "\r\n"
+    String resp(512);
+    if (resp.error())
+    {
+        print_err(req, "<%s:%d> Error create String object\n", __func__, __LINE__);
+        return -1;
+    }
+    resp << get_str_http_prot(req->httpProt) << " " << status_resp(req->resp.respStatus) << "\r\n"
         << "Date: " << req->resp.sLogTime << "\r\n"
         << "Server: " << conf->ServerSoftware << "\r\n";
 
     if (req->reqMethod == M_OPTIONS)
-        ss << "Allow: OPTIONS, GET, HEAD, POST\r\n";
+        resp << "Allow: OPTIONS, GET, HEAD, POST\r\n";
     else
-        ss << "Accept-Ranges: bytes\r\n";
+        resp << "Accept-Ranges: bytes\r\n";
 
     if (req->resp.numPart == 1)
     {
-        ss << "Content-Range: bytes " << req->resp.offset << "-"
+        resp << "Content-Range: bytes " << req->resp.offset << "-"
             << (req->resp.offset + req->resp.respContentLength - 1)
             << "/" << req->resp.fileSize << "\r\n";
         if (req->resp.respContentType)
-            ss << "Content-Type: " << req->resp.respContentType << "\r\n";
-        ss << "Content-Length: " << req->resp.respContentLength << "\r\n";
+            resp << "Content-Type: " << req->resp.respContentType << "\r\n";
+        resp << "Content-Length: " << req->resp.respContentLength << "\r\n";
     }
     else if (req->resp.numPart == 0)
     {
         if (req->resp.respContentType)
-            ss << "Content-Type: " << req->resp.respContentType << "\r\n";
+            resp << "Content-Type: " << req->resp.respContentType << "\r\n";
         if (req->resp.respContentLength >= 0)
-            ss << "Content-Length: " << req->resp.respContentLength << "\r\n";
+            resp << "Content-Length: " << req->resp.respContentLength << "\r\n";
     }
 
     if (req->resp.respContentType[0])
     {
-        ss << "Content-Type: " << req->resp.respContentType << "\r\n";
+        resp << "Content-Type: " << req->resp.respContentType << "\r\n";
         //print_err(req, "<%s:%d> %s\n", __func__, __LINE__, req->respContentType);
     }
 
     if (req->resp.respStatus == RS101)
     {
-        ss << "Upgrade: HTTP/1.1\r\n"
+        resp << "Upgrade: HTTP/1.1\r\n"
             << "Connection: Upgrade\r\n";
     }
     else
     {
-        ss << "Connection: " << (req->connKeepAlive == 0 ? "close" : "keep-alive") << "\r\n";
+        resp << "Connection: " << (req->connKeepAlive == 0 ? "close" : "keep-alive") << "\r\n";
     }
     /*----------------------------------------------------------------*/
     if (hdrs)
-    {
-//print_err(req, "<%s:%d> [%s]\n", __func__, __LINE__, p->c_str());
-        ss << hdrs->str();
-    }
+        resp << hdrs->str();
 
     if (req->resp.numPart > 1)
-        ss << "\r\n\r\n";
+        resp << "\r\n\r\n";
     else
-        ss << "\r\n";
-
-    int len = (int)ss.str().size();
-    int n = write_timeout(req->clientSocket, ss.str().c_str(), len, conf->TimeOut);
+        resp << "\r\n";
+//print_err(req, "<%s:%d> [%s]\n", __func__, __LINE__, resp.str());
+    int n = write_timeout(req->clientSocket, resp.str(), resp.len(), conf->TimeOut);
     if (n <= 0)
     {
         print_err(req, "<%s:%d> Sent to client response error; (%d)\n", __func__, __LINE__, n);

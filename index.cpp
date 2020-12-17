@@ -108,7 +108,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
     ClChunked chunk_buf(req->clientSocket, chunk);
 
     req->resp.respStatus = RS200;
-    String hdrs(80, 0);
+    String hdrs(80);
     if (hdrs.error())
     {
         print_err(req, "<%s:%d> Error create String object\n", __func__, __LINE__);

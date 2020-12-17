@@ -3,6 +3,98 @@
 #include <iostream>
 #include <cstring>
 
+//======================================================================
+template <typename T>
+int int_to_str(T t, char* buf, unsigned int sizeBuf, int base)
+{
+    if ((base != 10) && (base != 16))
+        return -1;
+    unsigned int size;
+    if (base == 16)
+        size = sizeof(t) * 2 + 1;
+    else
+        size = 21;
+    int d, cnt = size - 1, minus = 0;
+    char s[21];
+    const char* byte_to_char = "0123456789ABCDEF";
+
+    if (base == 10)
+        if (t < 0LL) minus = 1;
+    s[cnt] = 0;
+    while (cnt > 0)
+    {
+        --cnt;
+        if (base == 10)
+        {
+            d = t % 10;
+            if (d < 0) d = -d;
+            s[cnt] = byte_to_char[d];
+            t /= 10;
+        }
+        else
+        {
+            d = (char)(t & 0x0f);
+            s[cnt] = byte_to_char[d];
+            t = t >> 4;
+        }
+        if (t == 0) break;
+    }
+    if (base == 10)
+    {
+        if (cnt <= 0) return -1;
+        if (minus) s[--cnt] = '-';
+    }
+
+    if (sizeBuf >= (size - cnt))
+        memcpy(buf, s + cnt, (size - cnt));
+    else
+        return -1;
+    return 0;
+}
+//======================================================================
+template <typename T>
+std::string int_to_str(T t, int base)
+{
+    if ((base != 10) && (base != 16))
+        return "";
+    unsigned int size;
+    if (base == 16)
+        size = sizeof(t) * 2 + 1;
+    else
+        size = 21;
+    int d, cnt = size - 1, minus = 0;
+    char s[21];
+    const char* byte_to_char = "0123456789ABCDEF";
+
+    if (base == 10)
+        if (t < 0LL) minus = 1;
+    s[cnt] = 0;
+    while (cnt > 0)
+    {
+        --cnt;
+        if (base == 10)
+        {
+            d = t % 10;
+            if (d < 0) d = -d;
+            s[cnt] = byte_to_char[d];
+            t /= 10;
+        }
+        else
+        {
+            d = (char)(t & 0x0f);
+            s[cnt] = byte_to_char[d];
+            t = t >> 4;
+        }
+        if (t == 0) break;
+    }
+    if (base == 10)
+    {
+        if (cnt <= 0) return "";
+        if (minus) s[--cnt] = '-';
+    }
+    return s + cnt;
+}
+//---------------------------------------------------------------------
 class BaseString
 {
 public:
@@ -30,14 +122,11 @@ protected:
         if ((s.lenBuf == 0) || err) return;
         if ((lenBuf + s.lenBuf) >= sizeBuf)
         {
-            resize(lenBuf + s.lenBuf + 1 + add);
+            reserve(lenBuf + s.lenBuf + 1 + add);
             if (err) return;
         }
-        if (ptr)
-        {
-            memcpy(ptr + lenBuf, s.ptr, s.lenBuf);
-            lenBuf += s.lenBuf;
-        }
+        memcpy(ptr + lenBuf, s.ptr, s.lenBuf);
+        lenBuf += s.lenBuf;
     }
 
     void append(const char ch)
@@ -46,14 +135,11 @@ protected:
         unsigned long len = 1;
         if ((lenBuf + len) >= sizeBuf)
         {
-            resize(lenBuf + len + 1 + add);
+            reserve(lenBuf + len + 1 + add);
             if (err) return;
         }
-        if (ptr)
-        {
-            memcpy(ptr + lenBuf, &ch, len);
-            lenBuf += len;
-        }
+        memcpy(ptr + lenBuf, &ch, len);
+        lenBuf += len;
     }
 
     void append(const char* s)
@@ -62,14 +148,11 @@ protected:
         unsigned long len = strlen(s);
         if ((lenBuf + len) >= sizeBuf)
         {
-            resize(lenBuf + len + 1 + add);
+            reserve(lenBuf + len + 1 + add);
             if (err) return;
         }
-        if (ptr)
-        {
-            memcpy(ptr + lenBuf, s, len);
-            lenBuf += len;
-        }
+        memcpy(ptr + lenBuf, s, len);
+        lenBuf += len;
     }
 
     void append(const std::string & s)
@@ -78,59 +161,30 @@ protected:
         unsigned long len = s.size();
         if ((lenBuf + len) >= sizeBuf)
         {
-            resize(lenBuf + len + 1 + add);
+            reserve(lenBuf + len + 1 + add);
             if (err) return;
         }
-        if (ptr)
-        {
-            memcpy(ptr + lenBuf, s.c_str(), len);
-            lenBuf += len;
-        }
+        memcpy(ptr + lenBuf, s.c_str(), len);
+        lenBuf += len;
+    }
+
+    template <typename T>
+    void append_int(T t)
+    {
+        if (err) return;
+        const unsigned long sz = 21;
+        char s[sz];
+        err = int_to_str(t, s, sizeof(s), base);
+        if (err == 0) append(s);
     }
 
 public:
-    String() { sizeBuf = lenBuf = err = 0; ptr = NULL; }
+    String() { }
 
-    String(const char ch)
+    String(int n)
     {
-        sizeBuf = lenBuf = err = 0;
-        ptr = NULL;
-        append(ch);
-    }
-    
-    String(const char* s)
-    {
-        sizeBuf = lenBuf = err = 0;
-        ptr = NULL;
-        append(s);
-    }
-
-    String(const std::string & s)
-    {
-        sizeBuf = lenBuf = err = 0;
-        ptr = NULL;
-        append(s);
-    }
-
-    String(long long ll)
-    {
-        sizeBuf = lenBuf = err = 0;
-        ptr = NULL;
-        const unsigned long sz = 21;
-        char s[sz];
-        if (base == 16)
-            snprintf(s, sz, "%llX", ll);
-        else
-            snprintf(s, sz, "%lld", ll);
-        append(s);
-    }
-
-    String(int n, const char ch)
-    {
-        sizeBuf = lenBuf = err = 0;
-        ptr = NULL;
         if (n == 0) return;
-        resize(n);
+        reserve(n);
     }
 
     String(const String & b)
@@ -151,12 +205,9 @@ public:
         b.sizeBuf = b.lenBuf = 0;
     }
 
-    ~String()
-    {
-        if (ptr) delete[] ptr;
-    }
+    ~String() { if (ptr) delete[] ptr; }
     //------------------------------------------------
-    void resize(unsigned int n)
+    void reserve(unsigned int n)
     {
         if (err) return;
         if ((n <= sizeBuf) || (n == 0))
@@ -201,36 +252,10 @@ public:
         return *this;
     }
 
-    String& operator = (const char ch)
-    {
-        if (err) return *this;
-        lenBuf = 0;
-        append(ch);
-        return *this;
-    }
-
     String& operator = (const std::string & s)
     {
         if (err) return *this;
         lenBuf = 0;
-        append(s);
-        return *this;
-    }
-    //------------------- + -----------------
-    String& operator + (const String& S) { if (err) return *this; append(S); return *this; }
-    String& operator + (const char* s) { if (err) return *this; append(s); return *this; }
-    String& operator + (const char ch) { if (err) return *this; append(ch); return *this; }
-    String& operator + (const std::string& s) { if (err) return *this; append(s); return *this; }
-
-    String& operator + (const long long ll)
-    {
-        if (err) return *this;
-        const unsigned long sz = 21;
-        char s[sz];
-        if (base == 16)
-            snprintf(s, sz, "%llX", ll);
-        else
-            snprintf(s, sz, "%lld", ll);
         append(s);
         return *this;
     }
@@ -243,65 +268,49 @@ public:
     String& operator << (const long long ll)
     {
         if (err) return *this;
-        const unsigned long sz = 21;
-        char s[sz];
-        if (base == 16)
-            snprintf(s, sz, "%llX", ll);
-        else
-            snprintf(s, sz, "%lld", ll);
-        append(s);
+        append_int(ll);
         return *this;
     }
 
     String& operator << (const long int li)
     {
         if (err) return *this;
-        const unsigned long sz = 16;
-        char s[sz];
-        if (base == 16)
-            snprintf(s, sz, "%lX", li);
-        else
-            snprintf(s, sz, "%ld", li);
-        append(s);
+        append_int(li);
         return *this;
     }
 
     String& operator << (const int i)
     {
         if (err) return *this;
-        const unsigned long sz = 16;
-        char s[sz];
-        if (base == 16)
-            snprintf(s, sz, "%X", i);
-        else
-            snprintf(s, sz, "%i", i);
-        append(s);
+        append_int(i);
         return *this;
     }
 
-    String& operator << (const unsigned long int i)
+    String& operator << (const short sh)
     {
         if (err) return *this;
-        const unsigned long sz = 16;
-        char s[sz];
-        if (base == 16)
-            snprintf(s, sz, "%lX", i);
-        else
-            snprintf(s, sz, "%lu", i);
-        append(s);
+        append_int(sh);
         return *this;
     }
 
-    String& operator << (const unsigned int i)
+    String& operator << (const unsigned long int ul)
     {
         if (err) return *this;
-        const unsigned long sz = 16;
-        char s[sz];
-        if (base == 16)
-            snprintf(s, sz, "%X", i);
-        else
-            snprintf(s, sz, "%u", i);
-        append(s);
+        append_int(ul);
+        return *this;
+    }
+
+    String& operator << (const unsigned int ui)
+    {
+        if (err) return *this;
+        append_int(ui);
+        return *this;
+    }
+
+    String& operator << (const unsigned short ush)
+    {
+        if (err) return *this;
+        append_int(ush);
         return *this;
     }
     //--------------------------------------
@@ -312,8 +321,6 @@ public:
         return *this;
     }
 
-    int error() { return err; }
-
     const char* str()
     {
         if (err || (!ptr)) return "";
@@ -321,6 +328,7 @@ public:
         return ptr;
     }
 
+    int error() { return err; }
     unsigned long len() { if (err) return 0; return lenBuf; }
     unsigned long size() { if (err) return 0; return sizeBuf; }
 };
