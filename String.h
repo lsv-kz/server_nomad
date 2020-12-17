@@ -10,16 +10,18 @@ int int_to_str(T t, char* buf, unsigned int sizeBuf, int base)
     if ((base != 10) && (base != 16))
         return -1;
     unsigned int size;
-    if (base == 16)
-        size = sizeof(t) * 2 + 1;
-    else
-        size = 21;
-    int d, cnt = size - 1, minus = 0;
+    int d, cnt, minus = 0;
     char s[21];
     const char* byte_to_char = "0123456789ABCDEF";
 
-    if (base == 10)
-        if (t < 0LL) minus = 1;
+    if (base == 16)
+        size = sizeof(t) * 2 + 1;
+    else
+    {
+        size = 21;
+        if (t < 0) minus = 1;
+    }
+    cnt = size - 1;
     s[cnt] = 0;
     while (cnt > 0)
     {
@@ -58,16 +60,18 @@ std::string int_to_str(T t, int base)
     if ((base != 10) && (base != 16))
         return "";
     unsigned int size;
-    if (base == 16)
-        size = sizeof(t) * 2 + 1;
-    else
-        size = 21;
-    int d, cnt = size - 1, minus = 0;
+    int d, cnt, minus = 0;
     char s[21];
     const char* byte_to_char = "0123456789ABCDEF";
 
-    if (base == 10)
-        if (t < 0LL) minus = 1;
+    if (base == 16)
+        size = sizeof(t) * 2 + 1;
+    else
+    {
+        size = 21;
+        if (t < 0) minus = 1;
+    }
+    cnt = size - 1;
     s[cnt] = 0;
     while (cnt > 0)
     {
