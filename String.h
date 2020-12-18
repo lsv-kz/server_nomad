@@ -3,88 +3,37 @@
 #include <iostream>
 #include <cstring>
 
-//======================================================================
-template <typename T>
-int int_to_str(T t, char* buf, unsigned int sizeBuf, int base)
-{
-    if ((base != 10) && (base != 16))
-        return 0;
-    unsigned int size;
-    int cnt, minus = 0;
-    char s[21];
-    const char* byte_to_char = "0123456789ABCDEF";
 
-    if (base == 16)
-        size = sizeof(t) * 2 + 1;
-    else
-    {
-        size = 21;
-        if (t < 0) minus = 1;
-    }
-    cnt = size - 1;
-    s[cnt] = 0;
-    while (cnt > 0)
-    {
-        --cnt;
-        if (base == 10)
-        {
-            int d = t % 10;
-            if (d < 0) d = -d;
-            s[cnt] = byte_to_char[d];
-            t /= 10;
-        }
-        else
-        {
-            s[cnt] = byte_to_char[t & 0x0f];
-            t = t >> 4;
-        }
-        if (t == 0) break;
-    }
-    if (base == 10)
-    {
-        if (cnt <= 0) return 0;
-        if (minus) s[--cnt] = '-';
-    }
-
-    if (sizeBuf >= (size - cnt))
-        memcpy(buf, s + cnt, (size - cnt));
-    else
-        return 0;
-    return size - cnt - 1;
-}
 //======================================================================
 template <typename T>
 std::string int_to_str(T t, int base)
 {
     if ((base != 10) && (base != 16))
         return "";
-    unsigned int size;
+    const int size = 21;
     int cnt, minus = 0;
-    char s[21];
-    const char* byte_to_char = "0123456789ABCDEF";
+    char s[size];
+    const char* byte_to_char = "FEDCBA9876543210123456789ABCDEF";
 
     if (base == 16)
-        size = sizeof(t) * 2 + 1;
+        cnt = sizeof(t) * 2;
     else
     {
-        size = 21;
+        cnt = size - 1;
         if (t < 0) minus = 1;
     }
-    cnt = size - 1;
     s[cnt] = 0;
     while (cnt > 0)
     {
         --cnt;
         if (base == 10)
         {
-            int d = t % 10;
-            if (d < 0) d = -d;
-            s[cnt] = byte_to_char[d];
+            s[cnt] = byte_to_char[15 + (t % 10)];
             t /= 10;
         }
         else
         {
-            s[cnt] = byte_to_char[t & 0x0f];
+            s[cnt] = byte_to_char[15 + (t & 0x0f)];
             t = t >> 4;
         }
         if (t == 0) break;
@@ -174,10 +123,44 @@ protected:
     void append_int(T t)
     {
         if (err) return;
-        const unsigned long sz = 21;
-        char s[sz];
-        err = !int_to_str(t, s, sizeof(s), base);
-        if (err == 0) append(s);
+        const unsigned long size = 21;
+        char s[size];
+        int cnt, minus = 0;
+        const char* byte_to_char = "FEDCBA9876543210123456789ABCDEF";
+        if (base == 16)
+            cnt = sizeof(t) * 2;
+        else
+        {
+            cnt = size - 1;
+            if (t < 0) minus = 1;
+        }
+        s[cnt] = 0;
+        while (cnt > 0)
+        {
+            --cnt;
+            if (base == 10)
+            {
+                s[cnt] = byte_to_char[15 + (t % 10)];
+                t /= 10;
+            }
+            else
+            {
+                s[cnt] = byte_to_char[15 + (t & 0x0f)];
+                t = t >> 4;
+            }
+            if (t == 0) break;
+        }
+        if (base == 10)
+        {
+            if (cnt <= 0)
+            {
+                err = 1;
+                return;
+            }
+            if (minus) s[--cnt] = '-';
+        }
+
+        if (err == 0) append(s + cnt);
     }
 
 public:
