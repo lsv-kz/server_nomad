@@ -8,9 +8,9 @@ template <typename T>
 int int_to_str(T t, char* buf, unsigned int sizeBuf, int base)
 {
     if ((base != 10) && (base != 16))
-        return -1;
+        return 0;
     unsigned int size;
-    int d, cnt, minus = 0;
+    int cnt, minus = 0;
     char s[21];
     const char* byte_to_char = "0123456789ABCDEF";
 
@@ -28,30 +28,29 @@ int int_to_str(T t, char* buf, unsigned int sizeBuf, int base)
         --cnt;
         if (base == 10)
         {
-            d = t % 10;
+            int d = t % 10;
             if (d < 0) d = -d;
             s[cnt] = byte_to_char[d];
             t /= 10;
         }
         else
         {
-            d = (char)(t & 0x0f);
-            s[cnt] = byte_to_char[d];
+            s[cnt] = byte_to_char[t & 0x0f];
             t = t >> 4;
         }
         if (t == 0) break;
     }
     if (base == 10)
     {
-        if (cnt <= 0) return -1;
+        if (cnt <= 0) return 0;
         if (minus) s[--cnt] = '-';
     }
 
     if (sizeBuf >= (size - cnt))
         memcpy(buf, s + cnt, (size - cnt));
     else
-        return -1;
-    return 0;
+        return 0;
+    return size - cnt - 1;
 }
 //======================================================================
 template <typename T>
@@ -60,7 +59,7 @@ std::string int_to_str(T t, int base)
     if ((base != 10) && (base != 16))
         return "";
     unsigned int size;
-    int d, cnt, minus = 0;
+    int cnt, minus = 0;
     char s[21];
     const char* byte_to_char = "0123456789ABCDEF";
 
@@ -78,15 +77,14 @@ std::string int_to_str(T t, int base)
         --cnt;
         if (base == 10)
         {
-            d = t % 10;
+            int d = t % 10;
             if (d < 0) d = -d;
             s[cnt] = byte_to_char[d];
             t /= 10;
         }
         else
         {
-            d = (char)(t & 0x0f);
-            s[cnt] = byte_to_char[d];
+            s[cnt] = byte_to_char[t & 0x0f];
             t = t >> 4;
         }
         if (t == 0) break;
@@ -178,7 +176,7 @@ protected:
         if (err) return;
         const unsigned long sz = 21;
         char s[sz];
-        err = int_to_str(t, s, sizeof(s), base);
+        err = !int_to_str(t, s, sizeof(s), base);
         if (err == 0) append(s);
     }
 
