@@ -78,7 +78,7 @@ void print_err(const char* format, ...)
     va_end(ap);
 
     stringstream ss;
-    ss << "[" << get_time() << "] - " << buf;
+    ss << "[" << get_time().str() << "] - " << buf;
 
     lock_guard<mutex> l(mtxLog);
     DWORD wrr;
@@ -99,7 +99,7 @@ void print_err(Connect* req, const char* format, ...)
     va_end(ap);
 
     stringstream ss;
-    ss << "[" << get_time() << "]-[" << req->numChld << "/" << req->numConn << "/" << req->numReq << "] " << buf;
+    ss << "[" << get_time().str() << "]-[" << req->numChld << "/" << req->numConn << "/" << req->numReq << "] " << buf;
 
     lock_guard<mutex> l(mtxLog);
     DWORD wrr;
@@ -115,7 +115,7 @@ void print_log(Connect* req)
     stringstream ss;
 
     ss << req->numChld << "/" << req->numConn << "/" << req->numReq << " - " << req->remoteAddr << ":" << req->remotePort
-        << " - [" << req->resp.sLogTime.c_str() << "] - ";
+        << " - [" << req->resp.sLogTime.str() << "] - ";
     if (req->reqMethod > 0)
         ss << "\"" << get_str_method(req->reqMethod) << " "
         << req->decodeUri << " " << get_str_http_prot(req->httpProt) << "\" "; // uri

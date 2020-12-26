@@ -51,7 +51,7 @@ int ErrorStrSock(const char* f, int line, const char* s)
     return err;
 }
 //======================================================================
-string get_time()
+String get_time()
 {
     __time64_t now = 0;
     struct tm t;
@@ -64,7 +64,7 @@ string get_time()
     return s;
 }
 //======================================================================
-void get_time(string& str)
+void get_time(String& str)
 {
     __time64_t now = 0;
     struct tm t;

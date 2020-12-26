@@ -4,112 +4,6 @@
 #include "main.h"
 
 //======================================================================
-template <typename T>
-class Array
-{
-protected:
-    const int ADDITION = 8;
-    T *t;
-    unsigned int sizeBuf;
-    unsigned int lenBuf;
-    const char *err = "Success";
-    
-    int append(const T& val)
-    {
-        if (lenBuf >= sizeBuf)
-            if (resize(sizeBuf + ADDITION)) return 1;
-        t[lenBuf++] = val;
-        return 0;
-    }
-    
-public:
-    Array(const Array&) = delete;
-    Array()
-    {
-        sizeBuf = lenBuf = 0;
-        t = NULL;
-    }
-    
-    Array(unsigned int n)
-    {
-        lenBuf = 0;
-        t = new(std::nothrow) T [n];
-        if (!t)
-            sizeBuf = 0;
-        else
-            sizeBuf = n;
-    }
-    
-    ~Array()
-    {
-        if (t)
-        {
-            delete [] t;
-        }
-    }
-    
-    Array<T> & operator << (const T& val)
-    {
-        append(val);
-        return *this;
-    }
-    
-    Array<T> & operator + (const T& val)
-    {
-        append(val);
-        return *this;
-    }
-
-    int resize(unsigned int n)
-    {
-        if (n <= lenBuf)
-            return 1;
-        T *tmp = new(std::nothrow) T [n];
-        if (!tmp)
-            return 1;
-        for (unsigned int c = 0; c < lenBuf; ++c)
-            tmp[c] = t[c];
-        if (t)
-            delete [] t;
-        t = tmp;
-        sizeBuf = n;
-        return 0;
-    }
-    
-    const char *error()
-    {
-        const char *p = err;
-        err = "Success";
-        return p;
-    }
-    
-    int operator () (const T& val)
-    {
-        return append(val);
-    }
-    
-    int operator () (const T& val1, const T& val2)
-    {
-        if (lenBuf >= sizeBuf)
-            if (resize(sizeBuf + ADDITION)) return 1;
-
-        t[lenBuf] = val1;
-        t[lenBuf++] << val2;
-        return 0;
-    }
-    
-    T *get(unsigned int i)
-    {
-        if (i < lenBuf)
-            return t + i;
-        else
-            return NULL;
-    }
-    
-    int len() { return lenBuf; }
-    int size() { return sizeBuf; }
-};
-//----------------------------------------------------------------------
 struct Range {
     long long start;
     long long end;
@@ -280,6 +174,32 @@ public:
         }
 
         memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, len);
+        i += len;
+        return *this;
+    }
+    //------------------------------------------------------------------
+    ClChunked& operator << (const String& s)
+    {
+        int n = 0, len = s.len();
+        if (len == 0) return *this;
+        if (mode == NO_SEND)
+        {
+            allSend += len;
+            return *this;
+        }
+
+        while (CHUNK_SIZE_BUF < (i + len))
+        {
+            int l = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.str() + n, l);
+            i += l;
+            len -= l;
+            n += l;
+            int ret = send_chunk(i);
+            if (ret < 0)
+                throw ret;
+        }
+        memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.str() + n, len);
         i += len;
         return *this;
     }

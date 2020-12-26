@@ -84,7 +84,7 @@ int main_proc(const char* name_proc)
         cerr << "<" << __LINE__ << "> Error NumChld = " << conf->NumChld << "; [NumChld < 1]\n";
         exit(1);
     }
-    cerr << " [" << get_time() << "] - server \"" << conf->ServerSoftware << "\" run\n"
+    cerr << " [" << get_time().str() << "] - server \"" << conf->ServerSoftware << "\" run\n"
         << "\n   pid = " << pid
         << "\n   ip = " << conf->host
         << "\n   port = " << conf->servPort

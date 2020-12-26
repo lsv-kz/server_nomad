@@ -30,15 +30,15 @@ int check_path(wstring& path)
 //======================================================================
 int read_conf_file(const char* path_conf)
 {
-    stringstream ss;
-    string s, nameFile;
-    nameFile += path_conf;
-    nameFile += "/server.conf";
+    String s, ss, nameFile;
+    char buf[512];
+    nameFile << path_conf;
+    nameFile << "/server.conf";
 
-    ifstream fconf(nameFile.c_str(), ios::binary);
+    ifstream fconf(nameFile.str(), ios::binary);
     if (!fconf.is_open())
     {
-        cerr << __func__ << "(): Error create conf file (" << nameFile << ")\n";
+        cerr << __func__ << "(): Error create conf file (" << nameFile.str() << ")\n";
         cin.get();
         exit(1);
     }
@@ -46,9 +46,8 @@ int read_conf_file(const char* path_conf)
     while (!fconf.eof())
     {
         ss.clear();
-        ss.str("");
-        getline(fconf, s);
-        ss << s;
+        fconf.getline(buf, sizeof(buf));
+        ss << buf;
         ss >> s;
         if (s[0] == '#')
             continue;

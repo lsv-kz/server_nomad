@@ -183,7 +183,7 @@ public:
     /*--------------------------*/
     struct {
         int       respStatus;
-        std::string    sLogTime;
+        String    sLogTime;
         long long respContentLength;
         char      respContentType[128];
         long long fileSize;
@@ -280,8 +280,8 @@ int fcgi(Connect* req);
 /*---------------------------- functions.c ---------------------------*/
 int ErrorStrSock(const char* f, int line, const char* s);
 int PrintError(const char* f, int line, const char* s);
-std::string get_time();
-void get_time(std::string& s);
+String get_time();
+void get_time(String& s);
 char* strstr_case(const char* s1, const char* s2);
 int strlcmp_case(const char* s1, const char* s2, int len);
 int strcmp_case(const char* s1, const char* s2);

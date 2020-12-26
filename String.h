@@ -3,48 +3,6 @@
 #include <iostream>
 #include <cstring>
 
-
-//======================================================================
-/*template <typename T>
-std::string int_to_str(T t, int base)
-{
-    if ((base != 10) && (base != 16))
-        return "";
-    const int size = 21;
-    int cnt, minus = 0;
-    char s[size];
-    const char* byte_to_char = "FEDCBA9876543210123456789ABCDEF";
-
-    if (base == 16)
-        cnt = sizeof(t) * 2;
-    else
-    {
-        cnt = size - 1;
-        if (t < 0) minus = 1;
-    }
-    s[cnt] = 0;
-    while (cnt > 0)
-    {
-        --cnt;
-        if (base == 10)
-        {
-            s[cnt] = byte_to_char[15 + (t % 10)];
-            t /= 10;
-        }
-        else
-        {
-            s[cnt] = byte_to_char[15 + (t & 0x0f)];
-            t = t >> 4;
-        }
-        if (t == 0) break;
-    }
-    if (base == 10)
-    {
-        if (cnt <= 0) return "";
-        if (minus) s[--cnt] = '-';
-    }
-    return s + cnt;
-}*/
 //---------------------------------------------------------------------
 class BaseString
 {
@@ -61,11 +19,11 @@ class String
 protected:
     const int ADDITION = 128;
     int add = ADDITION;
-    unsigned long lenBuf = 0;
-    unsigned long sizeBuf = 0;
+    unsigned int lenBuf = 0;
+    unsigned int sizeBuf = 0;
     int err = 0;
-    int base = 10;
-    int p_ = 0;
+    int base_ = 10;
+    unsigned int p_ = 0;
 
     char* ptr = NULL;
 
@@ -74,7 +32,10 @@ protected:
         if ((s.lenBuf == 0) || err) return;
         if ((lenBuf + s.lenBuf) >= sizeBuf)
         {
-            reserve(lenBuf + s.lenBuf + 1 + add);
+            if (lenBuf)
+                reserve(lenBuf + s.lenBuf + 1 + add);
+            else
+                reserve(s.lenBuf + 32);
             if (err) return;
         }
         memcpy(ptr + lenBuf, s.ptr, s.lenBuf);
@@ -87,7 +48,10 @@ protected:
         unsigned long len = 1;
         if ((lenBuf + len) >= sizeBuf)
         {
-            reserve(lenBuf + len + 1 + add);
+            if (lenBuf)
+                reserve(lenBuf + len + 1 + add);
+            else
+                reserve(len + 32);
             if (err) return;
         }
         memcpy(ptr + lenBuf, &ch, len);
@@ -100,7 +64,10 @@ protected:
         unsigned long len = strlen(s);
         if ((lenBuf + len) >= sizeBuf)
         {
-            reserve(lenBuf + len + 1 + add);
+            if (lenBuf)
+                reserve(lenBuf + len + 1 + add);
+            else
+                reserve(len + 32);
             if (err) return;
         }
         memcpy(ptr + lenBuf, s, len);
@@ -113,32 +80,53 @@ protected:
         unsigned long len = s.size();
         if ((lenBuf + len) >= sizeBuf)
         {
-            reserve(lenBuf + len + 1 + add);
+            if (lenBuf)
+                reserve(lenBuf + len + 1 + add);
+            else
+                reserve(len + 32);
             if (err) return;
         }
         memcpy(ptr + lenBuf, s.c_str(), len);
         lenBuf += len;
     }
 
+    void destroy()
+    {
+        sizeBuf = lenBuf = p_ = err = 0;
+        base_ = 10;
+        if (ptr)
+        {
+            delete[] ptr;
+            ptr = NULL;
+        }
+    }
+
 public:
     String() { }
 
-    String(int n)
+    explicit String(int n)
     {
         if (n == 0) return;
         reserve(n);
     }
 
+    String(const char* s)
+    {
+        append(s);
+    }
+
+    String(char* s)
+    {
+        append(s);
+    }
+
     String(const String & b)
     {
-        sizeBuf = lenBuf = err = 0;
-        ptr = NULL;
         append(b);
     }
 
     String(String && b) noexcept
     {
-        if (b.err) return;
         ptr = b.ptr;
         p_ = b.p_;
         lenBuf = b.lenBuf;
@@ -148,24 +136,24 @@ public:
         b.sizeBuf = b.lenBuf = 0;
     }
 
-    ~String() { if (ptr) delete[] ptr; }
+    ~String() { destroy(); }
     //-----------------------------------------------------------------
     void reserve(unsigned int n)
     {
         if (err) return;
-        if ((n <= sizeBuf) || (n == 0))
+        if (n <= sizeBuf)
         {
-            err = 1;
+            if (n == 0)
+                destroy();
             return;
         }
 
         char* newBuf = new(std::nothrow) char[n];
         if (!newBuf)
         {
-            err = ENOMEM;
+            err = 1;
             return;
         }
-
         if (ptr)
         {
             memcpy(newBuf, ptr, lenBuf);
@@ -186,6 +174,15 @@ public:
             append(b);
             p_ = 0;
         }
+        return *this;
+    }
+    
+    String & operator = (const char ch)
+    {
+        if (err) return *this;
+        lenBuf = 0;
+        append(ch);
+        p_ = 0;
         return *this;
     }
 
@@ -221,7 +218,7 @@ public:
         char s[size];
         int cnt, minus = 0;
         const char* byte_to_char = "FEDCBA9876543210123456789ABCDEF";
-        if (base == 16)
+        if (base_ == 16)
             cnt = sizeof(t) * 2;
         else
         {
@@ -232,7 +229,7 @@ public:
         while (cnt > 0)
         {
             --cnt;
-            if (base == 10)
+            if (base_ == 10)
             {
                 s[cnt] = byte_to_char[15 + (t % 10)];
                 t /= 10;
@@ -244,7 +241,7 @@ public:
             }
             if (t == 0) break;
         }
-        if (base == 10)
+        if (base_ == 10)
         {
             if (cnt <= 0)
             {
@@ -258,24 +255,29 @@ public:
         return *this;
     }
     //-----------------------------------------------------------------
-    String append(const char* s, unsigned long n)
+    void append(const char* s, unsigned long n)
     {
-        String str(n + 1);
+        if (err) return;
         unsigned int len = strlen(s);
         if (n > len) n = len;
-        memcpy(str.ptr, s, n);
-        str.lenBuf = n;
-        return str;
+        if ((lenBuf + n) >= sizeBuf)
+        {
+            reserve(lenBuf + n + 1 + add);
+            if (err) return;
+        }
+
+        memcpy(ptr + lenBuf, s, n);
+        lenBuf += n;
     }
     //-----------------------------------------------------------------
     String& operator << (BaseString b)
     {
         if (err) return *this;
-        base = b.b;
+        base_ = b.b;
         return *this;
     }
 
-    const char* str()
+    const char* str() const
     {
         if (err || (!ptr)) return "";
         *(ptr + lenBuf) = 0;
@@ -283,29 +285,170 @@ public:
     }
 
     void clear() { err = lenBuf = p_ = 0; }
-    int error() { return err; }
-    unsigned long len() { if (err) return 0; return lenBuf; }
-    unsigned long size() { return sizeBuf; }
+    int error() const { return err; }
+    unsigned int len() const { if (err) return 0; return lenBuf; }
+    unsigned int size() const { return sizeBuf; }
+    void resize(unsigned int n) { if (err || (n > lenBuf)) return; lenBuf = n; }
+    int base() const { return base_; }
+    int get_p() const { return p_; }
     //----------------------------- >> ---------------------------------
+    const char* get_delimiter()
+    {
+        if (ptr == NULL)
+        {
+            err = 1;
+            return NULL;
+        }
+
+        if ((ptr[p_] == ' ') || (ptr[p_] == '\r') || (ptr[p_] == '\n'))
+            for (; (ptr[p_] == ' ') || (ptr[p_] == '\r') || (ptr[p_] == '\n'); ++p_);
+
+        char* p1 = (char*)memchr(ptr + p_, ' ', lenBuf - p_);
+        char* p2 = (char*)memchr(ptr + p_, '\r', lenBuf - p_);
+        char* p3 = (char*)memchr(ptr + p_, '\n', lenBuf - p_);
+
+        char* p4 = ptr + lenBuf;
+
+        if (!p1) p1 = p4;
+        if (!p2) p2 = p4;
+        if (!p3) p3 = p4;
+
+        if ((p1 < p2) && (p1 < p3))
+            return p1;
+        else if ((p2 < p1) && (p2 < p3))
+            return p2;
+        else if ((p3 < p1) && (p3 < p2))
+            return p3;
+        else
+            return p4;
+    }
+    
     String& operator >> (String& s)
     {
         if (err || (this == &s)) return *this;
-        if (ptr[p_] == ' ')
-            for (; (ptr[p_] == ' '); ++p_);
-        char* p = (char*)memchr(ptr + p_, ' ', lenBuf);
+        s.clear();
+        const char* p = get_delimiter();
         if (p)
         {
-            s = append(ptr + p_, (p - (ptr + p_)));
-            p_ += (p - (ptr + p_) + 1);
-            if (ptr[p_] == ' ')
-                for (; (ptr[p_] == ' '); ++p_);
+            s.append(ptr + p_, (p - (ptr + p_)));
+            p_ += (p - (ptr + p_));
         }
-        else
+
+        return *this;
+    }
+
+    String& operator >> (std::string& s)
+    {
+        if (err) return *this;
+        s.clear();
+        const char* p = get_delimiter();
+        if (p)
         {
-            s = str() + p_;
-            p_ = lenBuf;
+            s.append(ptr + p_, (p - (ptr + p_)));
+            p_ += (p - (ptr + p_));
         }
         return *this;
+    }
+
+    String& operator >> (char& ch)
+    {
+        if (err) return *this;
+        const char* p = get_delimiter();
+        if (p)
+        {
+            ch = *(ptr + p_);
+            if (p_ < lenBuf)
+                p_ += 1;
+        }
+        return *this;
+    }
+
+    template <typename T>
+    String& operator >> (T& t)
+    {
+        if (err || (p_ == lenBuf)) return *this;
+        const char* p = get_delimiter();
+        if (!p) return *this;
+        long long d;
+        if (base_ == 16)
+            d = strtoll(str() + p_, NULL, 16);
+        else
+            d = strtoll(str() + p_, NULL, 10);
+        if (err == 0)
+        {
+            t = (T)d;
+            p_ += (p - (ptr + p_));
+        }
+        return *this;
+    }
+
+    //------------------------------------------------------------------
+    void get_front(char* s, int size)
+    {
+        if (err || (p_ == lenBuf))
+        {
+            *s = 0;
+            return;
+        }
+
+        const char* p = get_delimiter();
+        if (p)
+        {
+            int len = p - (ptr + p_);
+            if (size > len)
+            {
+                memcpy(s, ptr + p_, len);
+                *(s + len) = 0;
+                p_ += (p - (ptr + p_));
+            }
+            else
+                err = 1;
+        }
+    }
+    //--------------------------- == -----------------------------------
+    friend const bool operator == (const String& s1, const String& s2)
+    {
+        if (s1.lenBuf != s2.lenBuf) return false;
+        if (strncmp(s1.str(), s2.str(), s1.lenBuf))
+            return false;
+        else
+            return true;
+    }
+
+    friend bool operator == (const String & s1, const char* s2)
+    {
+        unsigned int len = strlen(s2);
+        if (s1.lenBuf != len) return false;
+        if (strncmp(s1.str(), s2, len))
+            return false;
+        else
+            return true;
+    }
+
+    friend bool operator == (const char* s1, const String& s2)
+    {
+        unsigned int len = strlen(s1);
+        if (s2.lenBuf != len) return false;
+        if (strncmp(s2.str(), s1, len))
+            return false;
+        else
+            return true;
+    }
+    //---------------------------- != ----------------------------------
+    friend bool operator != (const String& s1, const char* s2)
+    {
+        unsigned long len = strlen(s2);
+        if (s1.lenBuf != len) return true;
+        if (strncmp(s1.str(), s2, len))
+            return true;
+        else
+            return false;
+    }
+    //------------------------------------------------------------------
+    const char operator[] (unsigned int n)
+    {
+        if (err || (n >= lenBuf)) return -1;
+        return *(ptr + n);
     }
 };
 
