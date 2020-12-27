@@ -77,23 +77,26 @@ void get_time(String& str)
     str = s;
 }
 //======================================================================
-char* strstr_case(const char* str1, const char* str2)
+const char* strstr_case(const char* str1, const char* str2)
 {
-    char c1, c2, * s1, * s2, * p1, * p2;
+    char c1, c2;
+    const char *s1, *s2, *p1, *p2;
 
-    s1 = (char*)str1;
-    s2 = (char*)str2;
+    s1 = str1;
+    s2 = str2;
 
     if (!s1 || !s2) return NULL;
     if (*s2 == 0) return s1;
 
+    int diff = ('a' - 'A');
+    
     for (; ; ++s1)
     {
         c1 = *s1;
         if (!c1) break;
         c2 = *s2;
-        c1 += (c1 >= 'A') && (c1 <= 'Z') ? ('a' - 'A') : 0;
-        c2 += (c2 >= 'A') && (c2 <= 'Z') ? ('a' - 'A') : 0;
+        c1 += (c1 >= 'A') && (c1 <= 'Z') ? diff : 0;
+        c2 += (c2 >= 'A') && (c2 <= 'Z') ? diff : 0;
         if (c1 == c2)
         {
             p1 = s1;
@@ -109,8 +112,8 @@ char* strstr_case(const char* str1, const char* str2)
                 c1 = *s1;
                 if (!c1) return NULL;
 
-                c1 += (c1 >= 'A') && (c1 <= 'Z') ? ('a' - 'A') : 0;
-                c2 += (c2 >= 'A') && (c2 <= 'Z') ? ('a' - 'A') : 0;
+                c1 += (c1 >= 'A') && (c1 <= 'Z') ? diff : 0;
+                c2 += (c2 >= 'A') && (c2 <= 'Z') ? diff : 0;
                 if (c1 != c2)
                     break;
             }
@@ -174,67 +177,67 @@ int strcmp_case(const char* s1, const char* s2)
 //======================================================================
 int get_int_method(char* s)
 {
-    if (!memcmp(s, (char*)"GET", 3))
+    if (!memcmp(s, "GET", 3))
         return M_GET;
-    else if (!memcmp(s, (char*)"POST", 4))
+    else if (!memcmp(s, "POST", 4))
         return M_POST;
-    else if (!memcmp(s, (char*)"HEAD", 4))
+    else if (!memcmp(s, "HEAD", 4))
         return M_HEAD;
-    else if (!memcmp(s, (char*)"OPTIONS", 7))
+    else if (!memcmp(s, "OPTIONS", 7))
         return M_OPTIONS;
-    else if (!memcmp(s, (char*)"CONNECT", 7))
+    else if (!memcmp(s, "CONNECT", 7))
         return M_CONNECT;
     else
         return 0;
 }
 //======================================================================
-char* get_str_method(int i)
+const char* get_str_method(int i)
 {
     if (i == M_GET)
-        return (char*)"GET";
+        return "GET";
     else if (i == M_POST)
-        return (char*)"POST";
+        return "POST";
     else if (i == M_HEAD)
-        return (char*)"HEAD";
+        return "HEAD";
     else if (i == M_OPTIONS)
-        return (char*)"OPTIONS";
+        return "OPTIONS";
     else if (i == M_CONNECT)
-        return (char*)"CONNECT";
-    return (char*)"";
+        return "CONNECT";
+    return "";
 }
 //======================================================================
 int get_int_http_prot(char* s)
 {
-    if (!memcmp(s, (char*)"HTTP/1.1", 8))
+    if (!memcmp(s, "HTTP/1.1", 8))
         return HTTP11;
-    else if (!memcmp(s, (char*)"HTTP/1.0", 8))
+    else if (!memcmp(s, "HTTP/1.0", 8))
         return HTTP10;
-    else if (!memcmp(s, (char*)"HTTP/0.9", 8))
+    else if (!memcmp(s, "HTTP/0.9", 8))
         return HTTP09;
-    else if (!memcmp(s, (char*)"HTTP/2", 6))
+    else if (!memcmp(s, "HTTP/2", 6))
         return HTTP2;
     else
         return 0;
 }
 //======================================================================
-char* get_str_http_prot(int i)
+const char* get_str_http_prot(int i)
 {
 
     if (i == HTTP11)
-        return (char*)"HTTP/1.1";
+        return "HTTP/1.1";
     else if (i == HTTP10)
-        return (char*)"HTTP/1.0";
+        return "HTTP/1.0";
     else if (i == HTTP09)
-        return (char*)"HTTP/0.9";
+        return "HTTP/0.9";
     else if (i == HTTP2)
-        return (char*)"HTTP/2";
-    return (char*)"";
+        return "HTTP/2";
+    return "";
 }
 //======================================================================
-char* strstr_lowercase(const char* s1, const char* s2)
+const char* strstr_lowercase(const char* s1, const char* s2)
 {
     int i, len = (int)strlen(s2);
-    char* p = (char*)s1;
+    const char* p = s1;
     for (i = 0; *p; ++p)
     {
         if (tolower(*p) == tolower(s2[0]))

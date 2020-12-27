@@ -51,7 +51,7 @@ int read_conf_file(const char* path_conf)
         ss >> s;
         if (s[0] == '#')
             continue;
-
+  //      cout << (ss.str()+ss.get_p()) << "\n";
         if (s == "ServerAddr")
             ss >> c.host;
         else if (s == "Port")

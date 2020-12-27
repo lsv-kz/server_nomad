@@ -98,22 +98,16 @@ int response(RequestManager* ReqMan, Connect* req)
             req->resp.respStatus = RS301;
 
             String hdrs(127);
-            try
-            {
-                hdrs << "Location: " << req->uri << "\r\n";
-            }
-            catch (...)
+            hdrs << "Location: " << req->uri << "\r\n";
+            if (hdrs.error())
             {
                 print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
             }
 
             String s(256);
-            try
-            {
-                s << "The document has moved <a href=\"" << req->uri << "\">here</a>";
-            }
-            catch (...)
+            s << "The document has moved <a href=\"" << req->uri << "\">here</a>";
+            if (s.error())
             {
                 print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -1;

@@ -131,9 +131,7 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
         }
     }
 
-    try
-    {
-        chunk_buf << "<!DOCTYPE HTML>\n"
+    chunk_buf << "<!DOCTYPE HTML>\n"
             "<html>\n"
             " <head>\n"
             "  <meta charset=\"UTF-8\">\n"
@@ -149,55 +147,44 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
             "  <h3>Index of " << req->decodeUri << "</h3>\n"
             "  <table cols=\"2\" width=\"100\x25\">\n"
             "   <tr><td><h3>Directories</h3></td><td></td></tr>\n";
-    }
-    catch (int e)
+    if (chunk_buf.error())
     {
-        print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+        print_err(req, "<%s:%d>   Error chunk\n", __func__, __LINE__);
         return -1;
     }
     //------------------------------------------------------------------
-    try
-    {
-        if (!strcmp(req->decodeUri, "/"))
+   
+    if (!strcmp(req->decodeUri, "/"))
             chunk_buf << "   <tr><td></td><td></td></tr>\n";
-        else
+    else
             chunk_buf << "   <tr><td><a href=\"../\">Parent Directory/</a></td><td></td></tr>\n";
-    }
-    catch (int e)
+    if (chunk_buf.error())
     {
-        print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+        print_err(req, "<%s:%d>   Error chunk\n", __func__, __LINE__);
         return -1;
     }
     //-------------------------- Directories ---------------------------
     for (int i = 0; i < dirs; ++i)
     {
-        try
-        {
-            chunk_buf << "   <tr><td><a href=\"" << vecDirs[i] << "/\">" << vecDirs[i] << "/</a></td>"
+        chunk_buf << "   <tr><td><a href=\"" << vecDirs[i] << "/\">" << vecDirs[i] << "/</a></td>"
                 "<td align=right></td></tr>\n";
-        }
-        catch (int e)
+        if (chunk_buf.error())
         {
-            print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+            print_err(req, "<%s:%d>   Error chunk\n", __func__, __LINE__);
             return -1;
         }
     }
     //------------------------------------------------------------------
-    try
-    {
-        chunk_buf << "   <tr><td><hr></td><td><hr></td></tr>\n"
+    chunk_buf << "   <tr><td><hr></td><td><hr></td></tr>\n"
             "   <tr><td><h3>Files</h3></td><td></td></tr>\n";
-    }
-    catch (int e)
+    if (chunk_buf.error())
     {
-        print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+        print_err(req, "<%s:%d>   Error chunk\n", __func__, __LINE__);
         return -1;
     }
     //---------------------------- Files -------------------------------
     for (int i = 0; i < files; ++i)
     {
-        try
-        {
             if (isimage(vecFiles[i].name.c_str()) && (conf->ShowMediaFiles == 'y'))
             {
                 if (vecFiles[i].size < 20000)
@@ -216,17 +203,14 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
             else
                 chunk_buf << "   <tr><td><a href=\"" << vecFiles[i].name << "\">" << vecFiles[i].name << "</a></td>"
                 "<td align=\"right\">" << vecFiles[i].size << " bytes</td></tr>\n";
-        }
-        catch (int e)
+        if (chunk_buf.error())
         {
-            print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+            print_err(req, "<%s:%d>   Error chunk\n", __func__, __LINE__);
             return -1;
         }
     }
     //------------------------------------------------------------------
-    try
-    {
-        chunk_buf << "  </table>\n"
+    chunk_buf << "  </table>\n"
             "  <hr>\n"
             "  " << req->resp.sLogTime <<
             "\n"
@@ -243,10 +227,9 @@ int index_chunk(Connect* req, vector <string> & vecDirs, vector <struct stFile> 
             "         opacity: 0.7\">^</a>\n"
             " </body>\n"
             "</html>";
-    }
-    catch (int e)
+    if (chunk_buf.error())
     {
-        print_err(req, "<%s:%d>   Error chunk: %d\n", __func__, __LINE__, e);
+        print_err(req, "<%s:%d>   Error chunk\n", __func__, __LINE__);
         return -1;
     }
     //------------------------------------------------------------------

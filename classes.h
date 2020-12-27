@@ -10,7 +10,7 @@ struct Range {
     long long part_len;
 };
 //----------------------------------------------------------------------
-class ArrayRanges
+class ArrayRanges // except
 {
 protected:
     const int ADDITION = 8;
@@ -33,10 +33,7 @@ public:
 
     ~ArrayRanges()
     {
-        if (range)
-        {
-            delete[] range;
-        }
+        if (range) delete[] range;
     }
 
     int resize(unsigned int n)
@@ -81,9 +78,10 @@ const int CHUNK_SIZE_BUF = 4096;
 const int MAX_LEN_SIZE_CHUNK = 6;
 enum mode_chunk { NO_SEND = 0, SEND_NO_CHUNK, SEND_CHUNK };
 //======================================================================
-class ClChunked
+class ClChunked  // noexcept
 {
     int i, mode, allSend;
+    int err = 0;
     SOCKET sock;
     char buf[CHUNK_SIZE_BUF + MAX_LEN_SIZE_CHUNK + 10];
     //------------------------------------------------------------------
@@ -125,6 +123,7 @@ public:
     //------------------------------------------------------------------
     ClChunked& operator << (const long long ll)
     {
+        if (err) return *this;
         std::ostringstream ss;
         ss << ll;
         int n = 0, len = ss.str().size();
@@ -143,7 +142,10 @@ public:
             n += l;
             int ret = send_chunk(i);
             if (ret < 0)
-                throw ret;
+            {
+                err = 1;
+                return *this;
+            }
         }
 
         memcpy(buf + MAX_LEN_SIZE_CHUNK + i, ss.str().c_str() + n, len);
@@ -153,7 +155,7 @@ public:
     //------------------------------------------------------------------
     ClChunked& operator << (const char* s)
     {
-        if (!s) throw __LINE__;
+        if (err || (!s)) return *this;
         int n = 0, len = strlen(s);
         if (mode == NO_SEND)
         {
@@ -170,7 +172,10 @@ public:
             n += l;
             int ret = send_chunk(i);
             if (ret < 0)
-                throw ret;
+            {
+                err = 1;
+                return *this;
+            }
         }
 
         memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, len);
@@ -180,6 +185,7 @@ public:
     //------------------------------------------------------------------
     ClChunked& operator << (const String& s)
     {
+        if (err) return *this;
         int n = 0, len = s.len();
         if (len == 0) return *this;
         if (mode == NO_SEND)
@@ -197,7 +203,10 @@ public:
             n += l;
             int ret = send_chunk(i);
             if (ret < 0)
-                throw ret;
+            {
+                err = 1;
+                return *this;
+            }
         }
         memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.str() + n, len);
         i += len;
@@ -206,6 +215,7 @@ public:
     //------------------------------------------------------------------
     ClChunked& operator << (const std::string& s)
     {
+        if (err) return *this;
         int n = 0, len = s.size();
         if (len == 0) return *this;
         if (mode == NO_SEND)
@@ -223,7 +233,10 @@ public:
             n += l;
             int ret = send_chunk(i);
             if (ret < 0)
-                throw ret;
+            {
+                err = 1;
+                return *this;
+            }
         }
         memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.c_str() + n, len);
         i += len;
@@ -232,7 +245,7 @@ public:
     //------------------------------------------------------------------
     int add_arr(const char* s, int len)
     {
-        if (!s) return -1;
+        if (!s || err) return -1;
         if (mode == NO_SEND)
         {
             allSend += len;
@@ -259,6 +272,7 @@ public:
     //------------------------------------------------------------------
     int cgi_to_client(PIPENAMED* Pipe, int sizeBuf)
     {
+        if (err) return -1;
         while (1)
         {
             if (CHUNK_SIZE_BUF <= i)
@@ -299,10 +313,12 @@ public:
     //------------------------------------------------------------------
     int fcgi_to_client(SOCKET fcgi_sock, int len)
     {
+        if (err) return -1;
         if (mode == NO_SEND)
         {
+            char buf[1024];
             allSend += len;
-      ///////      fcgi_to_cosmos(fcgi_sock, len, conf->TimeoutCGI);
+            read_timeout(fcgi_sock, buf, len, conf->TimeOutCGI);
             return 0;
         }
 
@@ -339,6 +355,7 @@ public:
     //------------------------------------------------------------------
     int end()
     {
+        if (err) return -1;
         if (mode == SEND_CHUNK)
         {
             int n = i;
@@ -355,6 +372,7 @@ public:
     }
     //------------------------------------------------------------------
     int all() { return allSend; }
+    int error() { return err; }
 };
 
 

@@ -265,7 +265,7 @@ int cgi_to_cosmos(PIPENAMED* Pipe, int maxRd, int timeout)
 
     return wr_bytes;
 }
-//======================================================================
+//=====================================================================
 long long client_to_script(SOCKET sock, PIPENAMED* Pipe, long long cont_len, int sizePipeBuf, int timeout)
 {
     long long wr_bytes;

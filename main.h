@@ -282,17 +282,17 @@ int ErrorStrSock(const char* f, int line, const char* s);
 int PrintError(const char* f, int line, const char* s);
 String get_time();
 void get_time(String& s);
-char* strstr_case(const char* s1, const char* s2);
+const char* strstr_case(const char* s1, const char* s2);
 int strlcmp_case(const char* s1, const char* s2, int len);
 int strcmp_case(const char* s1, const char* s2);
 
 int get_int_method(char* s);
-char* get_str_method(int i);
+const char* get_str_method(int i);
 
 int get_int_http_prot(char* s);
-char* get_str_http_prot(int i);
+const char* get_str_http_prot(int i);
 
-char* strstr_lowercase(const char* s, const char* key);
+const char* strstr_lowercase(const char* s, const char* key);
 int clean_path(char* path);
 
 const char* content_type(const wchar_t* path);

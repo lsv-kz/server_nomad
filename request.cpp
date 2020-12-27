@@ -7,7 +7,7 @@ void get_request(RequestManager* ReqMan)
 {
     int readFromClient;
     int num_thr, num_req, n;
-    char* p;
+    const char* p;
     Connect* req;
     int numChld = ReqMan->get_num_chld();
 
@@ -74,21 +74,17 @@ void get_request(RequestManager* ReqMan)
         else if (req->req_hdrs.iConnection == -1)
             req->connKeepAlive = 1;
 
-        if ((p = strrchr(req->uri, '?')))
+        if ((p = strchr(req->uri, '?')))
         {
-            req->sReqParam = p + 1;
-            *p = '\0';
-            req->uriLen = strlen(req->uri);
-            *p = '?';
+            req->uriLen = p - req->uri;
+            req->sReqParam = req->uri + req->uriLen + 1;
         }
         else
         {
             if ((p = strstr_case(req->uri, "%3F")))
             {
-                req->sReqParam = p + 3;
-                *p = '\0';
-                req->uriLen = strlen(req->uri);
-                *p = '%';
+                req->uriLen = p - req->uri;
+                req->sReqParam = req->uri + req->uriLen + 3;
             }
             else
             {
