@@ -62,6 +62,7 @@ protected:
     {
         if (!s || err) return;
         unsigned long len = strlen(s);
+        if (len == 0) return;
         if ((lenBuf + len) >= sizeBuf)
         {
             if (lenBuf)
@@ -78,6 +79,7 @@ protected:
     {
         if ((s.size() == 0) || err) return;
         unsigned long len = s.size();
+        if (len == 0) return;
         if ((lenBuf + len) >= sizeBuf)
         {
             if (lenBuf)
