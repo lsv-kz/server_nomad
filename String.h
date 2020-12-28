@@ -10,10 +10,10 @@ public:
     int b;
     BaseString(int n) { b = n; }
 };
-
+//---------------------------------------------------------------------
 #define Hex BaseString(16)
 #define Dec BaseString(10)
-//----------------------------------------------------------------------
+//---------------------------------------------------------------------
 class String
 {
 protected:
@@ -77,9 +77,8 @@ protected:
 
     void append(const std::string & s)
     {
-        if ((s.size() == 0) || err) return;
         unsigned long len = s.size();
-        if (len == 0) return;
+        if ((len == 0) || err) return;
         if ((lenBuf + len) >= sizeBuf)
         {
             if (lenBuf)
@@ -94,38 +93,22 @@ protected:
 
     void destroy()
     {
-        sizeBuf = lenBuf = p_ = err = 0;
-        base_ = 10;
         if (ptr)
         {
             delete[] ptr;
             ptr = NULL;
+            sizeBuf = lenBuf = 0;
         }
+        err = p_ = 0;
+        base_ = 10;
     }
 
 public:
     String() { }
-
-    explicit String(int n)
-    {
-        if (n == 0) return;
-        reserve(n);
-    }
-
-    String(const char* s)
-    {
-        append(s);
-    }
-
-    String(char* s)
-    {
-        append(s);
-    }
-
-    String(const String & b)
-    {
-        append(b);
-    }
+    explicit String(int n) { if (n == 0) return; reserve(n); }
+    String(const char* s) { append(s); }
+    String(char* s) { append(s); }
+    String(const String & b) { append(b); }
 
     String(String && b) noexcept
     {
@@ -178,30 +161,13 @@ public:
         }
         return *this;
     }
-    
-    String & operator = (const char ch)
-    {
-        if (err) return *this;
-        lenBuf = 0;
-        append(ch);
-        p_ = 0;
-        return *this;
-    }
 
-    String& operator = (const char* s)
+    template <typename T>
+    String& operator = (const T& t)
     {
         if (err) return *this;
         lenBuf = 0;
-        append(s);
-        p_ = 0;
-        return *this;
-    }
-
-    String& operator = (const std::string & s)
-    {
-        if (err) return *this;
-        lenBuf = 0;
-        append(s);
+        append(t);
         p_ = 0;
         return *this;
     }
@@ -369,12 +335,14 @@ public:
         if (err || (p_ == lenBuf)) return *this;
         const char* p = get_delimiter();
         if (!p) return *this;
-        long long d;
-        d = strtoll(str() + p_, NULL, base_);
-        if (err == 0)
+        char* pp = ptr + p_;
+        t = (T)strtoll(str() + p_, &pp, base_);
+        if ((ptr + p_) != pp)
+            p_ += (pp - (ptr + p_));
+        else
         {
-            t = (T)d;
-            p_ += (p - (ptr + p_));
+            err = 1;
+            t = 0;
         }
         return *this;
     }
@@ -407,7 +375,7 @@ public:
     friend const bool operator == (const String& s1, const String& s2)
     {
         if (s1.lenBuf != s2.lenBuf) return false;
-        if (strncmp(s1.str(), s2.str(), s1.lenBuf))
+        if (memcmp(s1.str(), s2.str(), s1.lenBuf))
             return false;
         else
             return true;
@@ -417,7 +385,7 @@ public:
     {
         unsigned int len = strlen(s2);
         if (s1.lenBuf != len) return false;
-        if (strncmp(s1.str(), s2, len))
+        if (memcmp(s1.str(), s2, len))
             return false;
         else
             return true;
@@ -427,7 +395,7 @@ public:
     {
         unsigned int len = strlen(s1);
         if (s2.lenBuf != len) return false;
-        if (strncmp(s2.str(), s1, len))
+        if (memcmp(s2.str(), s1, len))
             return false;
         else
             return true;
@@ -437,7 +405,7 @@ public:
     {
         unsigned long len = strlen(s2);
         if (s1.lenBuf != len) return true;
-        if (strncmp(s1.str(), s2, len))
+        if (memcmp(s1.str(), s2, len))
             return true;
         else
             return false;

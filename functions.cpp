@@ -222,7 +222,6 @@ int get_int_http_prot(char* s)
 //======================================================================
 const char* get_str_http_prot(int i)
 {
-
     if (i == HTTP11)
         return "HTTP/1.1";
     else if (i == HTTP10)
