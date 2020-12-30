@@ -91,6 +91,20 @@ protected:
         lenBuf += len;
     }
 
+    void append(const char* src, unsigned int n, unsigned int len_src)
+    {
+        if (err) return;
+        if (n > len_src) n = len_src;
+        if ((lenBuf + n) >= sizeBuf)
+        {
+            reserve(lenBuf + n + 1 + add);
+            if (err) return;
+        }
+
+        memcpy(ptr + lenBuf, src, n);
+        lenBuf += n;
+    }
+
     void destroy()
     {
         if (ptr)
@@ -296,7 +310,7 @@ public:
         const char* p = get_delimiter();
         if (p)
         {
-            s.append(ptr + p_, (p - (ptr + p_)));
+            s.append(ptr + p_, (p - (ptr + p_)), lenBuf);
             p_ += (p - (ptr + p_));
         }
 
@@ -310,7 +324,7 @@ public:
         const char* p = get_delimiter();
         if (p)
         {
-            s.append(ptr + p_, (p - (ptr + p_)));
+            s.append(ptr + p_, (p - (ptr + p_)), lenBuf);
             p_ += (p - (ptr + p_));
         }
         return *this;
@@ -375,7 +389,7 @@ public:
     friend const bool operator == (const String& s1, const String& s2)
     {
         if (s1.lenBuf != s2.lenBuf) return false;
-        if (memcmp(s1.str(), s2.str(), s1.lenBuf))
+        if (strncmp(s1.str(), s2.str(), s1.lenBuf))
             return false;
         else
             return true;
@@ -385,7 +399,7 @@ public:
     {
         unsigned int len = strlen(s2);
         if (s1.lenBuf != len) return false;
-        if (memcmp(s1.str(), s2, len))
+        if (strncmp(s1.str(), s2, len))
             return false;
         else
             return true;
@@ -395,7 +409,7 @@ public:
     {
         unsigned int len = strlen(s1);
         if (s2.lenBuf != len) return false;
-        if (memcmp(s2.str(), s1, len))
+        if (strncmp(s2.str(), s1, len))
             return false;
         else
             return true;
@@ -405,7 +419,7 @@ public:
     {
         unsigned long len = strlen(s2);
         if (s1.lenBuf != len) return true;
-        if (memcmp(s1.str(), s2, len))
+        if (strncmp(s1.str(), s2, len))
             return true;
         else
             return false;

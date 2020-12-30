@@ -323,7 +323,7 @@ int decode(char* s_in, size_t len_in, char* s_out, int len)
                 * p++ = (char)i;
             len -= 2;
         }
-        /*	else if(c == '+')
+        /*  else if(c == '+')
             {
                 if(s_out)
                     *p++ = ' ';
