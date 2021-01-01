@@ -286,7 +286,7 @@ public:
             int ret = ReadFromPipe(Pipe, buf + MAX_LEN_SIZE_CHUNK + i, size, &rd, sizeBuf, conf->TimeOutCGI);
             if (ret == 0) // BROKEN_PIPE
             {
-                print_err("<%s:%d> ret=%d, rd=%d\n", __func__, __LINE__, ret, rd);
+          //      print_err("<%s:%d> ret=%d, rd=%d\n", __func__, __LINE__, ret, rd);
                 if (rd > 0)
                 {
                     i += rd;

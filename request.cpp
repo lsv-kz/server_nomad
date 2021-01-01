@@ -88,7 +88,7 @@ void get_request(RequestManager* ReqMan)
             }
             else
             {
-                req->sReqParam = NULL;
+                req->sReqParam = "";
                 req->uriLen = strlen(req->uri);
             }
         }

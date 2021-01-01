@@ -134,35 +134,27 @@ public:
     }
 };
 //======================================================================
-SOCKET create_fcgi_socket(const wchar_t* host)
+SOCKET create_fcgi_socket(const char* host)
 {
     char addr[256];
     char port[16] = "";
-    std::string sHost;
+    std::string sHost = host;
 
     if (!host)
         return INVALID_SOCKET;
 
-    if (utf16_to_mbs(sHost, host))
+    size_t sz = sHost.find(':');
+    if (sz == std::string::npos)
     {
-        size_t sz = sHost.find(':');
-        if (sz == std::string::npos)
-        {
-            print_err("<%s:%d> \n", __func__, __LINE__);
-            return INVALID_SOCKET;
-        }
-
-        sHost.copy(addr, sz);
-        addr[sz] = 0;
-
-        size_t len = sHost.copy(port, sHost.size() - sz + 1, sz + 1);
-        port[len] = 0;
-    }
-    else
-    {
-        print_err("<%s:%d> Error utf16_to_mbs()\n", __func__, __LINE__);
+        print_err("<%s:%d> \n", __func__, __LINE__);
         return INVALID_SOCKET;
     }
+
+    sHost.copy(addr, sz);
+    addr[sz] = 0;
+
+    size_t len = sHost.copy(port, sHost.size() - sz + 1, sz + 1);
+    port[len] = 0;
     //----------------------------------------------------------------------
     SOCKET sockfd;
     SOCKADDR_IN sock_addr;
@@ -200,7 +192,7 @@ int fcgi_to_stderr(SOCKET fcgi_sock, int cont_len, int timeout)
     int wr_bytes = 0;
     int rd;
     char buf[512];
-
+    
     for (; cont_len > 0; )
     {
         rd = read_timeout(fcgi_sock, buf, cont_len > (int)sizeof(buf) ? (int)sizeof(buf) : cont_len, timeout);
@@ -318,30 +310,34 @@ int fcgi_get_header(SOCKET fcgi_sock, fcgi_header * header)
 int fcgi_chunk(Connect* req, String* hdrs, SOCKET fcgi_sock, fcgi_header * header)
 {
     int ret;
-    int chunked = ((req->httpProt == HTTP11) && req->connKeepAlive) ? 1 : 0;
-    ClChunked chunk(req->clientSocket, chunked);
-    //print_err("<%s:%d> -------------\n", __func__, __LINE__);
+    int chunk_mode;
+    if (req->reqMethod == M_HEAD)
+        chunk_mode = NO_SEND;
+    else
+        chunk_mode = ((req->httpProt == HTTP11) && req->connKeepAlive) ? SEND_CHUNK : SEND_NO_CHUNK;
+
+    ClChunked chunk(req->clientSocket, chunk_mode);
+ 
     req->resp.numPart = 0;
     req->resp.respContentType[0] = 0;
     req->resp.respContentLength = -1;
 
-    if (chunked)
+    if (chunk_mode == SEND_CHUNK)
     {
-        try
-        {
-            (*hdrs) << "Transfer-Encoding: chunked\r\n";
-        }
-        catch (...)
-        {
-            print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
-            return -RS500;
-        }
+        (*hdrs) << "Transfer-Encoding: chunked\r\n";
     }
 
-    if (send_response_headers(req, hdrs))
+    if (chunk_mode)
     {
-        print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
-        return -1;
+        if (send_response_headers(req, hdrs))
+        {
+            return -1;
+        }
+
+        if (req->resp.respStatus == RS204)
+        {
+            return 0;
+        }
     }
     //------------------- send entity after headers --------------------
     if (header->len > 0)
@@ -419,9 +415,21 @@ int fcgi_chunk(Connect* req, String* hdrs, SOCKET fcgi_sock, fcgi_header * heade
     }
     //------------------------------------------------------------------
     ret = chunk.end();
-    req->resp.send_bytes = chunk.all();
+    req->resp.respContentLength = chunk.all();
     if (ret < 0)
         print_err(req, "<%s:%d> Error chunk.end()\n", __func__, __LINE__);
+
+    if (chunk_mode == NO_SEND)
+    {
+        //print_err("<%s:%d> chunk.all() = %d\n", __func__, __LINE__, chunk.all());
+        if (send_response_headers(req, hdrs))
+        {
+            print_err(req, "<%s:%d> Error send_header_response()\n", __func__, __LINE__);
+            return -1;
+        }
+    }
+    else
+        req->resp.send_bytes = req->resp.respContentLength;
 
     return 0;
 }
@@ -430,7 +438,7 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
 {
     int n, ret;
     fcgi_header header;
-    //print_err(req, "<%s:%d> -------------\n", __func__, __LINE__);
+
     req->resp.respStatus = RS200;
 
     while (1)
@@ -484,14 +492,14 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
         }
 
         line[i] = 0;
-        //print_err("<%d> %s\n", __LINE__, line);		
+ //print_err("<%d> %s\n", __LINE__, line);
         if ((p2 = strchr(line, ':')))
         {
             if (!strlcmp_case(line, "Status", 6))
             {
                 req->resp.respStatus = strtol(++p2, NULL, 10);
                 //	sscanf(++p2, "%d", &req->resp.respStatus); // ?
-            //		if(req->resp.respStatus == RS204)
+         //       if(req->resp.respStatus == RS204)
                 {
                     send_message(req, NULL, &hdrs);
                     return 0;
@@ -508,20 +516,17 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
                 continue;
             }
 
-            try
-            {
-                hdrs << line << "\r\n";
-            }
-            catch (...)
+            hdrs << line << "\r\n";
+            if (hdrs.error())
             {
                 print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
             }
-            
+            /*
             if (strlcmp_case(line, "Content-Type", 12))
             {
                 print_err(req, "<%s:%d> %s\n", __func__, __LINE__, line);
-            }
+            }*/
         }
         else
         {
@@ -565,7 +570,7 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
     if (par.add("GATEWAY_INTERFACE", "CGI/1.1") < 0)
         goto err_param;
 
-    utf16_to_mbs(str, conf->wRootDir.c_str());
+    utf16_to_utf8(str, conf->wRootDir.c_str());
     if (par.add("DOCUMENT_ROOT", str.c_str()) < 0)
         goto err_param;
 
@@ -574,22 +579,19 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
 
     if (par.add("REMOTE_PORT", req->remotePort) < 0)
         goto err_param;
-
-  //  utf16_to_mbs(str, req->wDecodeUri.c_str());
+ 
     utf16_to_utf8(str, req->wDecodeUri);
     if (par.add("REQUEST_URI", str.c_str()) < 0)
         goto err_param;
 
     if (req->resp.scriptType == php_fpm)
     {
-   //     utf16_to_mbs(str, req->wDecodeUri.c_str());
         utf16_to_utf8(str, req->wDecodeUri);
         if (par.add("SCRIPT_NAME", str.c_str()) < 0)
             goto err_param;
 
         wstring wPath = conf->wRootDir;
         wPath += req->wScriptName;
-     //   utf16_to_mbs(str, wPath.c_str());
         utf16_to_utf8(str, wPath);
         if (par.add("SCRIPT_FILENAME", str.c_str()) < 0)
             goto err_param;
@@ -697,7 +699,7 @@ int fcgi(Connect* req)
 
     if (req->resp.scriptType == php_fpm)
     {
-        fcgi_sock = create_fcgi_socket(conf->wPathPHP.c_str());
+        fcgi_sock = create_fcgi_socket(conf->pathPHP_FPM.c_str());
     }
     else
     {

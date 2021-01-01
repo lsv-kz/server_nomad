@@ -80,7 +80,7 @@ int cgi(Connect* req)
     struct _stat st;
     BOOL bSuccess;
     string stmp;
-
+ //print_err(req, "<%s:%d> --------\n", __func__, __LINE__);
     char pipeName[40] = "\\\\.\\pipe\\cgi";
     const DWORD PIPE_BUFSIZE = 1024;
 
@@ -199,16 +199,16 @@ int cgi(Connect* req)
     env.add("REMOTE_HOST", req->remoteAddr);
     env.add("SERVER_PROTOCOL", get_str_http_prot(req->httpProt));
 
-    utf16_to_mbs(stmp, conf->wRootDir.c_str());
+    utf16_to_utf8(stmp, conf->wRootDir.c_str());
     env.add("DOCUMENT_ROOT", stmp.c_str());
 
-    utf16_to_mbs(stmp, req->wDecodeUri.c_str());
+    utf16_to_utf8(stmp, req->wDecodeUri.c_str()); // utf16_to_mbs: REQUEST_URI = Error wcstombs() Illegal byte sequence
     env.add("REQUEST_URI", stmp.c_str());
 
-    utf16_to_mbs(stmp, wPath.c_str());
+    utf16_to_utf8(stmp, wPath.c_str()); // utf16_to_mbs
     env.add("SCRIPT_FILENAME", stmp.c_str());
 
-    utf16_to_mbs(stmp, req->wDecodeUri.c_str());
+    utf16_to_utf8(stmp, req->wDecodeUri.c_str()); // utf16_to_mbs
     env.add("SCRIPT_NAME", stmp.c_str());
 
     env.add("REMOTE_ADDR", req->remoteAddr);
@@ -217,7 +217,7 @@ int cgi(Connect* req)
     //------------------------------------------------------------------
     if (req->resp.scriptType == php_cgi)
     {
-        commandLine = conf->wPathPHP;
+        commandLine = conf->wPathPHP_CGI;
     }
     else if (req->resp.scriptType == cgi_ex)
     {
@@ -459,7 +459,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
         s[len] = '\0';
         if (len == 0)
             break;
-        //print_err(req, "<%s:%d> %s\n", __func__, __LINE__, s);
+   //     print_err(req, "<%s:%d> %s\n", __func__, __LINE__, s);
         if (!strlcmp_case(s, "Status", 6))
         {
             if ((p2 = (char*)memchr(s, ':', len)))
@@ -467,7 +467,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
                 req->resp.respStatus = strtol(++p2, NULL, 10);
                 if (req->resp.respStatus == 0)
                     return -1;
-                //  if (req->resp.respStatus == RS204)
+                if (req->resp.respStatus == RS204)
                 {
                     send_message(req, NULL, NULL);
                     return 0;
@@ -505,7 +505,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
             print_err("%d<%s:%d> Error send_header_response()\n", req->numChld, __func__, __LINE__);
             return -1;
         }
-        req->resp.respContentLength = ReadFromScript + n;
+        req->resp.respContentLength = (long long)ReadFromScript + n;
 
         if (send_response_headers(req, &hdrs))
         {

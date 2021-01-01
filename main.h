@@ -107,7 +107,8 @@ struct Config
     std::wstring wPyPath = L"";
 
     std::string usePHP = "n";
-    std::wstring wPathPHP = L"";
+    std::wstring wPathPHP_CGI = L"";
+    std::string pathPHP_FPM = "";
 
     long int ClientMaxBodySize = 1000000;
 
@@ -157,7 +158,7 @@ public:
     //---------------------- dynamic buffer ----------------------------
     const wchar_t* wScriptName;
     //---------------------- end ---------------------------------------
-    char*     sReqParam;
+    const char*     sReqParam;
     char      sRange[64];
     int       httpProt;
     int       connKeepAlive;
@@ -300,8 +301,8 @@ int parse_startline_request(Connect* req, char* s, int len);
 int parse_headers(Connect* req, char* s, int len);
 void path_correct(std::wstring& path);
 //----------------------- multibytes -----------------------------------
-int utf16_to_mbs(std::string& s, const wchar_t* ws);
-int mbs_to_utf16(std::wstring& ws, const char* u8);
+//int utf16_to_mbs(std::string& s, const wchar_t* ws);
+//int mbs_to_utf16(std::wstring& ws, const char* u8);
 int utf16_to_utf8(std::string& s, std::wstring& ws);
 int utf16_to_utf8(std::string& s, const wchar_t* ws);
 int utf8_to_utf16(char* u8, std::wstring& ws);

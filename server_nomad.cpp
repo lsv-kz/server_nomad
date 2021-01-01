@@ -99,8 +99,9 @@ int main_proc(const char* name_proc)
         << "\n   TimeOut = " << conf->TimeOut
         << "\n   TimeoutThreadCond = " << conf->TimeoutThreadCond
         << "\n   TimeOutCGI = " << conf->TimeOutCGI
-        << "\n\n   php: " << conf->usePHP;
-    wcerr << L"\n   path_php: " << conf->wPathPHP
+        << "\n\n   php: " << conf->usePHP
+        << "\n\n   path_php-fpm: " << conf->pathPHP_FPM;
+    wcerr << L"\n   path_php-cgi: " << conf->wPathPHP_CGI
         << L"\n   pyPath: " << conf->wPyPath
         << L"\n   PerlPath: " << conf->wPerlPath
         << L"\n   root_dir = " << conf->wRootDir

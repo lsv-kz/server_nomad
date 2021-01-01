@@ -71,7 +71,8 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
         int err = utf16_to_utf8(fname, ffd.cFileName);
         if (err == 0)
         {
-            if (ffd.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY)
+ //   print_err(req, "<%s:%d> attrt=0x%x\n", __func__, __LINE__, ffd.dwFileAttributes);
+            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             {
                 if (dirs > 255) continue;
                 vecDirs.push_back(fname);
@@ -79,6 +80,7 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
             }
             else if (ffd.dwFileAttributes == FILE_ATTRIBUTE_ARCHIVE)
             {
+ //   print_err(req, "<%s:%d> attrt=0x%x\n", __func__, __LINE__, ffd.dwFileAttributes);
                 if (files > 255) continue;
                 stFile tmp;
                 tmp.name = fname; // 
@@ -90,7 +92,7 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
     } while (FindNextFileW(hFind, &ffd) != 0);
     FindClose(hFind);
 
-    sort(vecDirs.begin(), vecDirs.end());
+ //   sort(vecDirs.begin(), vecDirs.end());
     sort(vecFiles.begin(), vecFiles.end(), compareVec);
 
     return index_chunk(req, vecDirs, vecFiles);

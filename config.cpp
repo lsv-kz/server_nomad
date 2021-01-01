@@ -70,13 +70,13 @@ int read_conf_file(const char* path_conf)
         {
             string stmp;
             ss >> stmp;
-            mbs_to_utf16(c.wCgiDir, stmp.c_str());
+            utf8_to_utf16(stmp, c.wCgiDir);
         }
         else if (s == "LogPath")
         {
             string stmp;
             ss >> stmp;
-            mbs_to_utf16(c.wLogDir, stmp.c_str());
+            utf8_to_utf16(stmp, c.wLogDir);
         }
         else if (s == "ListenBacklog")
             ss >> c.ListenBacklog;
@@ -102,19 +102,23 @@ int read_conf_file(const char* path_conf)
         {
             string stmp;
             ss >> stmp;
-            mbs_to_utf16(c.wPerlPath, stmp.c_str());
+            utf8_to_utf16(stmp, c.wPerlPath);
         }
         else if (s == "PyPath")
         {
             string stmp;
             ss >> stmp;
-            mbs_to_utf16(c.wPyPath, stmp.c_str());
+            utf8_to_utf16(stmp, c.wPyPath);
         }
-        else if (s == "PathPHP")
+        else if (s == "PathPHP-CGI")
         {
             string stmp;
             ss >> stmp;
-            mbs_to_utf16(c.wPathPHP, stmp.c_str());
+            utf8_to_utf16(stmp, c.wPathPHP_CGI);
+        }
+        else if (s == "PathPHP-FPM")
+        {
+            ss >> c.pathPHP_FPM;
         }
         else if (s == "UsePHP")
             ss >> c.usePHP;

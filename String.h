@@ -281,6 +281,8 @@ public:
             return NULL;
         }
 
+        *(ptr + lenBuf) = 0;
+
         for (; (ptr[p_] == ' ') || (ptr[p_] == '\r') || (ptr[p_] == '\n'); ++p_);
 
         char* p1 = (char*)memchr(ptr + p_, ' ', lenBuf - p_);

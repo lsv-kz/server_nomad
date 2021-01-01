@@ -98,6 +98,7 @@ int response(RequestManager* ReqMan, Connect* req)
 
     if (attr & FILE_ATTRIBUTE_HIDDEN)
     {
+        print_err(req, "<%s:%d> Hidden\n", __func__, __LINE__);
         return -RS404;
     }
 
@@ -135,6 +136,34 @@ int response(RequestManager* ReqMan, Connect* req)
         if ((_wstat(wPath.c_str(), &st) == -1) || (conf->index_html != 'y'))
         {
             wPath.resize(len);
+            if ((conf->usePHP != "n") && (conf->index_php == 'y'))
+            {
+                wPath += L"/index.php";
+                if (_wstat(wPath.c_str(), &st) == 0)
+                {
+                    int ret;
+                    wstring s = req->wDecodeUri;
+                    s += L"/index.php";
+                    req->wScriptName = s.c_str();
+                    if (conf->usePHP == "php-fpm")
+                    {
+                        req->resp.scriptType = php_fpm;
+                        ret = fcgi(req);
+                    }
+                    else if (conf->usePHP == "php-cgi")
+                    {
+                        req->resp.scriptType = php_cgi;
+                        ret = cgi(req);
+                    }
+                    else
+                        ret = -1;
+
+                    req->resp.scriptName = NULL;
+                    return ret;
+                }
+                wPath.resize(len);
+            }
+
             return index_dir(ReqMan, req, wPath);
         }
     }
