@@ -324,7 +324,7 @@ public:
         const char* p = get_delimiter();
         if (p)
         {
-            s.append(ptr + p_, (p - (ptr + p_)), lenBuf);
+            s.append(ptr + p_, (p - (ptr + p_)));
             p_ += (p - (ptr + p_));
         }
         return *this;

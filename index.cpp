@@ -65,18 +65,19 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
     do
     {
         if (ffd.cFileName[0] == '.') continue;
-
+        if (ffd.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) continue;
+//     print_err(req, "<%s:%d> attrt=0x%x\n", __func__, __LINE__, ffd.dwFileAttributes);
         string fname;
         int err = utf16_to_utf8(fname, ffd.cFileName);
         if (err == 0)
         {
-            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            if (ffd.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY)
             {
                 if (dirs > 255) continue;
                 vecDirs.push_back(fname);
                 dirs++;
             }
-            else
+            else if (ffd.dwFileAttributes == FILE_ATTRIBUTE_ARCHIVE)
             {
                 if (files > 255) continue;
                 stFile tmp;

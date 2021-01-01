@@ -89,6 +89,18 @@ int response(RequestManager* ReqMan, Connect* req)
         }
     }
     //------------------------------------------------------------------
+    DWORD attr = GetFileAttributesW(wPath.c_str());
+    if (attr == INVALID_FILE_ATTRIBUTES)
+    {
+        PrintError(__func__, __LINE__, "GetFileAttributesW");
+        return -RS500;
+    }
+
+    if (attr & FILE_ATTRIBUTE_HIDDEN)
+    {
+        return -RS404;
+    }
+
     if (st64.st_mode & _S_IFDIR)
     {
         if (req->uri[req->uriLen - 1] != '/')
