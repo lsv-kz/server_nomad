@@ -37,7 +37,7 @@ static int isaudiofile(const char* name)
     return 0;
 }
 //======================================================================
-bool compareVec(stFile s1, stFile s2)
+bool compareVec(stFile& s1, stFile& s2)
 {
     return (s1.name < s2.name);
 }
@@ -92,7 +92,7 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
     } while (FindNextFileW(hFind, &ffd) != 0);
     FindClose(hFind);
 
- //   sort(vecDirs.begin(), vecDirs.end());
+    sort(vecDirs.begin(), vecDirs.end());
     sort(vecFiles.begin(), vecFiles.end(), compareVec);
 
     return index_chunk(req, vecDirs, vecFiles);

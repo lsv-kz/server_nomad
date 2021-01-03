@@ -288,7 +288,7 @@ int utf8_to_utf16(string & u8, wstring & ws)
     return 0;
 }
 /*====================================================================*/
-int decode(char* s_in, size_t len_in, char* s_out, int len)
+int decode1(char* s_in, size_t len_in, char* s_out, int len)
 {
     char tmp[3];
     char* p = s_out;
@@ -328,6 +328,76 @@ int decode(char* s_in, size_t len_in, char* s_out, int len)
                 if(s_out)
                     *p++ = ' ';
             }*/
+        else
+        {
+            if (s_out)
+                * p++ = c;
+        }
+
+        --len_in;
+        if (!len_in) break;
+    }
+    if (s_out)
+        * p = 0;
+    return cnt;
+}
+/*====================================================================*/
+int decode(char* s_in, size_t len_in, char* s_out, int len)
+{
+    char tmp[3];
+    char* p = s_out;
+    char hex[] = "ABCDEFabcdef0123456789";
+    unsigned char c;
+
+    int cnt = 0, i;
+
+    while (len >= 1)
+    {
+        c = *(s_in++);
+
+        len--;
+        cnt++;
+        if (c == '%')
+        {
+            if (!strchr("ABCDEF0123456789", *s_in))
+            {
+                if (s_out)
+                    * p++ = c;
+            }
+            else
+            {
+                tmp[0] = *(s_in++);
+                --len_in;
+
+                if (!len_in)
+                    break;
+
+                tmp[1] = *(s_in++);
+                --len_in;
+                if (!len_in)
+                    break;
+
+                tmp[2] = 0;
+
+                if (strspn(tmp, hex) != 2)
+                {
+                    if (s_out)
+                        * p = 0;
+                    return 0;
+                }
+
+                sscanf_s(tmp, "%x", &i);
+
+                if (s_out)
+                    * p++ = (char)i;
+                len -= 2;
+            }
+        }
+        else if (c == '+')
+        {
+            if (s_out)
+                * p++ = ' ';
+        }
         else
         {
             if (s_out)
