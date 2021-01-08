@@ -27,7 +27,8 @@ public:
     ArrayRanges(const ArrayRanges&) = delete;
     ArrayRanges()
     {
-        sizeBuf = lenBuf = 0;
+        sizeBuf = lenBuf = numPart = 0;
+        sizeFile = 0LL;
         range = NULL;
     }
 
@@ -83,7 +84,7 @@ class ClChunked  // noexcept
     int i, mode, allSend;
     int err = 0;
     SOCKET sock;
-    char buf[CHUNK_SIZE_BUF + MAX_LEN_SIZE_CHUNK + 10];
+    char buf[CHUNK_SIZE_BUF + MAX_LEN_SIZE_CHUNK + 10] = {};
     //------------------------------------------------------------------
     int send_chunk(int size)
     {

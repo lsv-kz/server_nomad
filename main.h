@@ -265,7 +265,7 @@ public:
     void end_response(Connect*);
 };
 
-//======================================================================
+//=====================================================================
 int in4_aton(const char* host, struct in_addr* addr);
 SOCKET create_server_socket(const Config* conf);
 
@@ -273,12 +273,10 @@ void get_request(RequestManager* ReqMan);
 int response(RequestManager* ReqMan, Connect* req);
 int options(Connect* req);
 int index_dir(RequestManager* ReqMan, Connect* req, std::wstring& path);
-
-int decode(char* s_in, size_t len_in, char* s_out, int len);
-//----------------------------------------------------------------------
+//---------------------------------------------------------------------
 int cgi(Connect* req);
 int fcgi(Connect* req);
-/*---------------------------- functions.c ---------------------------*/
+//---------------------------------------------------------------------
 int ErrorStrSock(const char* f, int line, const char* s);
 int PrintError(const char* f, int line, const char* s);
 String get_time();
@@ -300,14 +298,13 @@ const char* content_type(const wchar_t* path);
 int parse_startline_request(Connect* req, char* s, int len);
 int parse_headers(Connect* req, char* s, int len);
 void path_correct(std::wstring& path);
-//----------------------- multibytes -----------------------------------
-//int utf16_to_mbs(std::string& s, const wchar_t* ws);
-//int mbs_to_utf16(std::wstring& ws, const char* u8);
-int utf16_to_utf8(std::string& s, std::wstring& ws);
-int utf16_to_utf8(std::string& s, const wchar_t* ws);
-int utf8_to_utf16(char* u8, std::wstring& ws);
-int utf8_to_utf16(std::string& u8, std::wstring& ws);
-//-------------------- send_resp ---------------------------------------
+//---------------------------------------------------------------------
+int utf16_to_utf8(const std::wstring& ws, std::string& s);
+//int utf16_to_utf8(const wchar_t* ws, std::string& s);
+int utf8_to_utf16(const char* u8, std::wstring& ws);
+int utf8_to_utf16(const std::string& u8, std::wstring& ws);
+int decode(char* s_in, size_t len_in, char* s_out, int len);
+//---------------------------------------------------------------------
 void send_message(Connect* req, const char* msg, String* hdrs);
 int send_response_headers(Connect* req, String* hdrs);
 //----------------------------------------------------------------------
@@ -320,7 +317,7 @@ int cgi_to_cosmos(PIPENAMED* Pipe, int maxRd, int timeout);
 
 long long client_to_script(SOCKET sock, PIPENAMED* Pipe, long long cont_len, int sizePipeBuf, int timeout);
 int send_file_1(SOCKET sock, int fd_in, char* buf, int* size, long long offset, long long* cont_len);
-int send_file_2(SOCKET sock, int fd_in, char* buf, int size, long long offset);
+int send_file_2(SOCKET sock, int fd_in, char* buf, int size);
 int read_line_sock(SOCKET sock, char* buf, int size, int timeout);
 int read_headers(Connect* req, int timeout1, int timeout2);
 //----------------------------------------------------------------------

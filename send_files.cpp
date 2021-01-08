@@ -1,5 +1,5 @@
 #include "main.h"
-// list, poll
+
 // POLLERR=0x1, POLLHUP=0x2, POLLNVAL=0x4, POLLPRI=0x400, POLLRDBAND=0x200
 // POLLRDNORM=0x100, POLLWRNORM=0x10, POLLIN=0x300, POLLOUT=0x10
 // 0x13, 0x2, 0x12
@@ -26,6 +26,7 @@ int send_entity(Connect* req, char* rd_buf, int size_buf)
 {
     int ret;
     int len;
+
     if (req->resp.respContentLength >= (long long)size_buf)
         len = size_buf;
     else
@@ -35,7 +36,7 @@ int send_entity(Connect* req, char* rd_buf, int size_buf)
             return 0;
     }
 
-    ret = send_file_2(req->clientSocket, req->resp.fd, rd_buf, len, req->resp.offset);
+    ret = send_file_2(req->clientSocket, req->resp.fd, rd_buf, len);
     if (ret <= 0)
     {
         if (ret == -1)
@@ -44,7 +45,6 @@ int send_entity(Connect* req, char* rd_buf, int size_buf)
     }
 
     req->resp.send_bytes += ret;
-    req->resp.offset += ret;
     req->resp.respContentLength -= ret;
     if (req->resp.respContentLength == 0)
         ret = 0;
@@ -225,6 +225,7 @@ void send_files(RequestManager * ReqMan)
 //======================================================================
 void push_resp_queue(Connect* req)
 {
+    _lseeki64(req->resp.fd, req->resp.offset, SEEK_SET);
     mtx_send.lock();
     req->time_write = 0;
 

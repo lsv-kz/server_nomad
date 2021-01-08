@@ -28,15 +28,6 @@ void get_request(RequestManager* ReqMan)
             return;
         }
 
-        if (req->numReq == 0)
-        {
-            u_long iMode = 1;
-            if (ioctlsocket(req->clientSocket, FIONBIO, &iMode) == SOCKET_ERROR)
-            {
-                print_err(req, "<%s:%d> Error ioctlsocket(): %d\n", __func__, __LINE__, WSAGetLastError());
-            }
-        }
-
         req->init();
         /*--------------------- read_request ---------------------*/
         readFromClient = read_headers(req, req->timeout, conf->TimeOut);

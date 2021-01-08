@@ -5,8 +5,9 @@ using namespace std;
 struct stFile
 {
     string name;
-    long long size;
+    long long size = 0LL;
 };
+
 int index_chunk(Connect* req, vector <string>& vecDirs, vector <struct stFile>& vecFiles);
 //======================================================================
 static int isimage(const char* name)
@@ -56,7 +57,7 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
     if (INVALID_HANDLE_VALUE == hFind)
     {
         string str;
-        utf16_to_utf8(str, path);
+        utf16_to_utf8(path, str);
         print_err(req, "<%s:%d>  Error opendir(\"%s\")\n", __func__, __LINE__, str.c_str());
         return -RS500;
     }
@@ -68,7 +69,7 @@ int index_dir(RequestManager * ReqMan, Connect* req, wstring & path)
         if (ffd.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) continue;
 //     print_err(req, "<%s:%d> attrt=0x%x\n", __func__, __LINE__, ffd.dwFileAttributes);
         string fname;
-        int err = utf16_to_utf8(fname, ffd.cFileName);
+        int err = utf16_to_utf8(ffd.cFileName, fname);
         if (err == 0)
         {
  //   print_err(req, "<%s:%d> attrt=0x%x\n", __func__, __LINE__, ffd.dwFileAttributes);

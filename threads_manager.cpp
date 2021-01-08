@@ -87,6 +87,9 @@ unique_lock<mutex> lk(mtx_thr);
     }
     --num_wait_thr;
     req = list_begin;
+    
+    if (!list_begin) return NULL;
+    
     if (list_begin->next)
     {
         list_begin->next->prev = NULL;
@@ -333,7 +336,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hExit_out)
         }
 
         req->numChld = numChld;
-        req->numConn = ++allConn;
+        req->numConn = allConn++;
         req->numReq = 0;
         req->clientSocket = clientSocket;
         req->timeout = conf->TimeOut;

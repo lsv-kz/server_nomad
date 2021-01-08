@@ -354,12 +354,10 @@ int send_file_1(SOCKET sock, int fd_in, char* buf, int* size, long long offset, 
     return ret;
 }
 /*====================================================================*/
-int send_file_2(SOCKET sock, int fd_in, char* buf, int size, long long offset)
+int send_file_2(SOCKET sock, int fd_in, char* buf, int size)
 {
     int rd, wr;
     errno = 0;
-
-    _lseeki64(fd_in, offset, SEEK_SET);
 
     rd = _read(fd_in, buf, size);
     if (rd <= 0)
@@ -381,6 +379,7 @@ int send_file_2(SOCKET sock, int fd_in, char* buf, int size, long long offset)
     if (rd != wr)
     {
         print_err("<%s:%d> %d != %d\n", __func__, __LINE__, rd, wr);
+        _lseeki64(fd_in, (long long)wr - rd, SEEK_CUR);
     }
 
     return wr;

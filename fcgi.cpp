@@ -35,7 +35,7 @@ const int FCGI_SIZE_HEADER = 8;
 
 class FCGI_params
 {
-    char buf[FCGI_SIZE_HEADER + FCGI_SIZE_PAR_BUF + 8];
+    char buf[FCGI_SIZE_HEADER + FCGI_SIZE_PAR_BUF + 8] = {};
     int i = FCGI_SIZE_HEADER;
     SOCKET sock;
 
@@ -570,7 +570,7 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
     if (par.add("GATEWAY_INTERFACE", "CGI/1.1") < 0)
         goto err_param;
 
-    utf16_to_utf8(str, conf->wRootDir.c_str());
+    utf16_to_utf8(conf->wRootDir, str);
     if (par.add("DOCUMENT_ROOT", str.c_str()) < 0)
         goto err_param;
 
@@ -580,19 +580,19 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
     if (par.add("REMOTE_PORT", req->remotePort) < 0)
         goto err_param;
  
-    utf16_to_utf8(str, req->wDecodeUri);
+    utf16_to_utf8(req->wDecodeUri, str);
     if (par.add("REQUEST_URI", str.c_str()) < 0)
         goto err_param;
 
     if (req->resp.scriptType == php_fpm)
     {
-        utf16_to_utf8(str, req->wDecodeUri);
+        utf16_to_utf8(req->wDecodeUri, str);
         if (par.add("SCRIPT_NAME", str.c_str()) < 0)
             goto err_param;
 
         wstring wPath = conf->wRootDir;
         wPath += req->wScriptName;
-        utf16_to_utf8(str, wPath);
+        utf16_to_utf8(wPath, str);
         if (par.add("SCRIPT_FILENAME", str.c_str()) < 0)
             goto err_param;
     }

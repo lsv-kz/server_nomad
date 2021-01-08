@@ -114,7 +114,7 @@ void print_log(Connect* req)
 {
     stringstream ss;
 
-    ss << req->numChld << "/" << req->numConn << "/" << req->numReq << " - " << req->remoteAddr << ":" << req->remotePort
+    ss << req->numChld << "/" << req->numConn << "/" << req->numReq << " - " << req->remoteAddr // << ":" << req->remotePort
         << " - [" << req->resp.sLogTime.str() << "] - ";
     if (req->reqMethod > 0)
         ss << "\"" << get_str_method(req->reqMethod) << " "

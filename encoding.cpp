@@ -3,67 +3,7 @@
 using namespace std;
 
 //======================================================================
-int utf16_to_mbs(string& s, const wchar_t* ws)
-{
-    size_t wlen = wcslen(ws), ret = 0;
-    size_t  size = wlen * sizeof(wchar_t);
-    char* buf = new(nothrow) char[size + 1];
-    if (!buf)
-    {
-        s = "Error new()";
-        return 0;
-    }
-
-    size_t  n;
-    errno_t err = wcstombs_s(&n, buf, size + 1, ws, size);
-    if (!err)
-    {
-        if (n == (size - 1)) buf[size - 1] = 0;
-        s = buf;
-        ret = s.size();
-    }
-    else
-    {
-        char sTmp[256];
-        if (strerror_s(sTmp, 256, errno))
-            s[0] = 0;
-        s = "Error wcstombs() ";
-        s += sTmp;
-        ret = 0;
-    }
-    delete[] buf;
-    return (int)ret;
-}
-//======================================================================
-int mbs_to_utf16(wstring & ws, const char* u8)
-{
-    size_t len = strlen(u8);
-    wchar_t* wchs;
-    wchs = new(nothrow) wchar_t[len + 1];
-    if (!wchs)
-    {
-        ws = L"Error new()";
-        return 0;
-    }
-
-    size_t  ret;
-    errno_t err = mbstowcs_s(&ret, wchs, len + 1, u8, len);
-    if (!err)
-    {
-        if (ret == len) wchs[len] = L'\0';
-        ws = wchs;
-        ret = ws.size();
-    }
-    else
-    {
-        ws = L"Error mbstowcs() ";
-        ret = 0;
-    }
-    delete[] wchs;
-    return (int)ret;
-}
-//======================================================================
-int utf16_to_utf8(string & s, wstring & ws)
+int utf16_to_utf8(const wstring & ws, string & s)
 {
     size_t wlen = ws.size(), i = 0;
     s.clear();
@@ -97,7 +37,7 @@ int utf16_to_utf8(string & s, wstring & ws)
     return 0;
 }
 //======================================================================
-int utf16_to_utf8(string & s, const wchar_t* ws)
+/*int utf16_to_utf8(const wchar_t* ws, string & s)
 {
     size_t wlen = wcslen(ws), i = 0;
     s.clear();
@@ -129,9 +69,9 @@ int utf16_to_utf8(string & s, const wchar_t* ws)
     }
 
     return 0;
-}
+}*/
 //======================================================================
-int utf8_to_utf16(char* u8, wstring & ws)
+int utf8_to_utf16(const char* u8, wstring & ws)
 {
     size_t len = strlen(u8), i = 0;
     size_t num;
@@ -209,7 +149,7 @@ int utf8_to_utf16(char* u8, wstring & ws)
     return 0;
 }
 //======================================================================
-int utf8_to_utf16(string & u8, wstring & ws)
+int utf8_to_utf16(const string & u8, wstring & ws)
 {
     size_t len = u8.size(), i = 0;
     size_t num;

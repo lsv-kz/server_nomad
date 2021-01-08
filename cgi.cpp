@@ -112,7 +112,7 @@ int cgi(Connect* req)
 
     if (_wstat(wPath.c_str(), &st) == -1)
     {
-        utf16_to_utf8(stmp, wPath);
+        utf16_to_utf8(wPath, stmp);
         print_err(req, "<%s:%d> script (%s) not found: errno=%d\n", __func__,
             __LINE__, stmp.c_str(), errno);
         retExit = -RS404;
@@ -199,16 +199,16 @@ int cgi(Connect* req)
     env.add("REMOTE_HOST", req->remoteAddr);
     env.add("SERVER_PROTOCOL", get_str_http_prot(req->httpProt));
 
-    utf16_to_utf8(stmp, conf->wRootDir.c_str());
+    utf16_to_utf8(conf->wRootDir, stmp);
     env.add("DOCUMENT_ROOT", stmp.c_str());
 
-    utf16_to_utf8(stmp, req->wDecodeUri.c_str()); // utf16_to_mbs: REQUEST_URI = Error wcstombs() Illegal byte sequence
+    utf16_to_utf8(req->wDecodeUri, stmp);
     env.add("REQUEST_URI", stmp.c_str());
 
-    utf16_to_utf8(stmp, wPath.c_str()); // utf16_to_mbs
+    utf16_to_utf8(wPath, stmp);
     env.add("SCRIPT_FILENAME", stmp.c_str());
 
-    utf16_to_utf8(stmp, req->wDecodeUri.c_str()); // utf16_to_mbs
+    utf16_to_utf8(req->wDecodeUri, stmp);
     env.add("SCRIPT_NAME", stmp.c_str());
 
     env.add("REMOTE_ADDR", req->remoteAddr);
@@ -329,7 +329,7 @@ int cgi(Connect* req)
     CloseHandle(childPipe);
     if (!bSuccess)
     {
-        utf16_to_utf8(stmp, commandLine);
+        utf16_to_utf8(commandLine, stmp);
         print_err(req, "<%s:%d> Error CreateProcessW(%s)\n", __func__, __LINE__, stmp.c_str());
         PrintError(__func__, __LINE__, "Error CreateProcessW()");
         retExit = -RS500;

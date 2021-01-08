@@ -256,7 +256,7 @@ const char* strstr_lowercase(const char* s1, const char* s2)
 const char* content_type(const wchar_t* path)
 {
     string s;
-    if (utf16_to_utf8(s, path))
+    if (utf16_to_utf8(path, s))
     {
         print_err("<%s:%d> Error utf16_to_mbs()\n", __func__, __LINE__);
         return "";
