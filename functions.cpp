@@ -468,7 +468,11 @@ int parse_headers(Connect* req, char* s, int len)
     }
     else if (!strlcmp_case(pName, "range", 32))
     {
-        sscanf_s(pVal, "bytes=%63s", req->sRange, (unsigned)_countof(req->sRange));
+        char* p = strchr(pVal, '=');
+        if (p)
+            req->sRange = p + 1;
+        else
+            req->sRange = NULL;
         req->req_hdrs.iRange = req->req_hdrs.countReqHeaders;
     }
     else if (!strlcmp_case(pName, "If-Range", 32))

@@ -21,7 +21,7 @@ protected:
     long long sizeFile;
 
     int check_ranges();
-    int parse_ranges(char* sRange, int sizeStr);
+    int parse_ranges(char* sRange, String& ss);
 
 public:
     ArrayRanges(const ArrayRanges&) = delete;
@@ -72,7 +72,7 @@ public:
     int len() { return lenBuf; }
     int size() { return sizeBuf; }
 
-    int create_ranges(char* s, int sizeStr, long long sz);
+    int create_ranges(char* s, long long sz);
 };
 //===============================================================
 const int CHUNK_SIZE_BUF = 4096;

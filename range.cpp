@@ -49,10 +49,9 @@ int ArrayRanges::check_ranges()
     return numPart;
 }
 //======================================================================
-int ArrayRanges::parse_ranges(char* sRange, int sizeStr)
+int ArrayRanges::parse_ranges(char* sRange, String& ss)
 {
     char* p0 = sRange, * p;
-    std::stringstream ss;
     long long size = sizeFile;
     int numPart = 0;
 
@@ -113,9 +112,9 @@ int ArrayRanges::parse_ranges(char* sRange, int sizeStr)
 
         if ((start < size) && (end >= start) && (start >= 0))
         {
-            ss << start << '-' << end;
+            ss << start << "-" << end;
             if (*p == ',')
-                ss << ',';
+                ss << ",";
             numPart++;
             if (*p == 0)
                 break;
@@ -123,21 +122,18 @@ int ArrayRanges::parse_ranges(char* sRange, int sizeStr)
         p++;
     }
 
-    int len = ss.str().size();
-    if (len < sizeStr)
-        memcpy(sRange, ss.str().c_str(), len + 1);
-    else
-    {
-        numPart = 0;
-    }
-
     return numPart;
 }
 //======================================================================
-int ArrayRanges::create_ranges(char* s, int sizeStr, long long sz)
+int ArrayRanges::create_ranges(char* s, long long sz)
 {
+    String ss(128);
+    if (ss.error())
+    {
+        return 0;
+    }
     sizeFile = sz;
-    numPart = parse_ranges(s, sizeStr);
+    numPart = parse_ranges(s, ss);
     if (numPart > 0)
     {
         if (resize(numPart))
@@ -146,14 +142,19 @@ int ArrayRanges::create_ranges(char* s, int sizeStr, long long sz)
             return 0;
         }
 
-        char* p = s;
+        const char* p = ss.str();
+        char* pp;
         for (int i = 0; i < numPart; ++i)
         {
             long long start, end;
-            start = strtoll(p, &p, 10);
-            p++;
-            end = strtoll(p, &p, 10);
-            p++;
+            start = strtoll(p, &pp, 10);
+            pp++;
+            p = pp;
+
+            end = strtoll(p, &pp, 10);
+            pp++;
+            p = pp;
+
             (*this) << Range{ start, end, end - start + 1 };
         }
 

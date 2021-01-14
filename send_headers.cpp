@@ -43,12 +43,6 @@ int send_response_headers(Connect* req, String* hdrs)
             resp << "Content-Length: " << req->resp.respContentLength << "\r\n";
     }
 
-    if (req->resp.respContentType[0])
-    {
-        resp << "Content-Type: " << req->resp.respContentType << "\r\n";
-        //print_err(req, "<%s:%d> %s\n", __func__, __LINE__, req->respContentType);
-    }
-
     if (req->resp.respStatus == RS101)
     {
         resp << "Upgrade: HTTP/1.1\r\n"

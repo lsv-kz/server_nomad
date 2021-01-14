@@ -176,7 +176,7 @@ int response(RequestManager* ReqMan, Connect* req)
     {
         try
         {
-            req->resp.numPart = rg.create_ranges(req->sRange, sizeof(req->sRange), req->resp.fileSize);
+            req->resp.numPart = rg.create_ranges(req->sRange, req->resp.fileSize);
         }
         catch (...)
         {

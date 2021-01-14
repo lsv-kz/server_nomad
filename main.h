@@ -159,7 +159,7 @@ public:
     const wchar_t* wScriptName;
     //---------------------- end ---------------------------------------
     const char*     sReqParam;
-    char      sRange[64];
+    char      *sRange;
     int       httpProt;
     int       connKeepAlive;
 
@@ -204,7 +204,7 @@ public:
         err = -1;
         bufReq[0] = '\0';
         decodeUri[0] = '\0';
-        sRange[0] = '\0';
+        sRange = NULL;
         sReqParam = NULL;
         //------------------------------------
         uri = NULL;
