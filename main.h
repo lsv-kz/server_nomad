@@ -147,7 +147,6 @@ public:
     int       lenTail;
 
     char      decodeUri[LEN_BUF_REQUEST];
-    size_t    lenDecodeUri;
 
     std::wstring   wDecodeUri;
 

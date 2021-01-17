@@ -94,8 +94,6 @@ void get_request(RequestManager* ReqMan)
             req->err = -RS500;
             goto end;
         }
-
-        req->lenDecodeUri = strlen(req->decodeUri);
         //--------------------------------------------------------------
         if ((req->reqMethod == M_GET) || (req->reqMethod == M_HEAD) || (req->reqMethod == M_POST))
         {
