@@ -80,7 +80,7 @@ int cgi(Connect* req)
     struct _stat st;
     BOOL bSuccess;
     string stmp;
- //print_err(req, "<%s:%d> --------\n", __func__, __LINE__);
+// print_err(req, "<%s:%d> --------\n", __func__, __LINE__);
     char pipeName[40] = "\\\\.\\pipe\\cgi";
     const DWORD PIPE_BUFSIZE = 1024;
 

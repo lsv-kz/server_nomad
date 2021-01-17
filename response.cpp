@@ -158,10 +158,21 @@ int response(RequestManager* ReqMan, Connect* req)
                     else
                         ret = -1;
 
-                    req->resp.scriptName = NULL;
+                    req->wScriptName = NULL;
                     return ret;
                 }
                 wPath.resize(len);
+            }
+
+            if (conf->index_pl == 'y')
+            {
+                req->resp.scriptType = cgi_ex;
+                wstring s = L"/cgi-bin/index.pl";
+                req->wScriptName = s.c_str();
+
+                int ret = cgi(req);
+                req->wScriptName = NULL;
+                return ret;
             }
 
             return index_dir(ReqMan, req, wPath);

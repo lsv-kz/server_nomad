@@ -190,7 +190,6 @@ public:
         int       countRespHeaders;
 
         int       scriptType;
-        const char* scriptName;
 
         int       numPart;
         int       fd;
@@ -227,7 +226,6 @@ public:
         resp.scriptType = 0;
         resp.countRespHeaders = 0;
         resp.sLogTime = "";
-        resp.scriptName = NULL;
     }
 };
 
