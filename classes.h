@@ -77,7 +77,7 @@ public:
 //===============================================================
 const int CHUNK_SIZE_BUF = 4096;
 const int MAX_LEN_SIZE_CHUNK = 6;
-enum mode_chunk { NO_SEND = 0, SEND_NO_CHUNK, SEND_CHUNK };
+enum mode_chunk { NO_SEND, SEND_NO_CHUNK, SEND_CHUNK };
 //======================================================================
 class ClChunked  // noexcept
 {
@@ -92,13 +92,13 @@ class ClChunked  // noexcept
         int len;
         if (mode == SEND_CHUNK)
         {
-            std::stringstream ss;
-            ss << std::uppercase << std::hex << size << "\r\n" << std::dec;
-            len = ss.str().size();
+            String ss(16);
+            ss << Hex << size << "\r\n" << Dec;
+            len = ss.len();
             int n = MAX_LEN_SIZE_CHUNK - len;
             if (n < 0)
                 return -1;
-            memcpy(buf + n, ss.str().c_str(), len);
+            memcpy(buf + n, ss.str(), len);
             memcpy(buf + MAX_LEN_SIZE_CHUNK + i, "\r\n", 2);
             i += 2;
             p = buf + n;
@@ -125,9 +125,9 @@ public:
     ClChunked& operator << (const long long ll)
     {
         if (err) return *this;
-        std::ostringstream ss;
+        String ss(32);
         ss << ll;
-        int n = 0, len = ss.str().size();
+        int n = 0, len = ss.len();
         if (mode == NO_SEND)
         {
             allSend += len;
@@ -136,11 +136,11 @@ public:
 
         while (CHUNK_SIZE_BUF < (i + len))
         {
-            int l = CHUNK_SIZE_BUF - i;
-            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, ss.str().c_str() + n, l);
-            i += l;
-            len -= l;
-            n += l;
+            int len_part = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, ss.str() + n, len_part);
+            i += len_part;
+            len -= len_part;
+            n += len_part;
             int ret = send_chunk(i);
             if (ret < 0)
             {
@@ -149,7 +149,7 @@ public:
             }
         }
 
-        memcpy(buf + MAX_LEN_SIZE_CHUNK + i, ss.str().c_str() + n, len);
+        memcpy(buf + MAX_LEN_SIZE_CHUNK + i, ss.str() + n, len);
         i += len;
         return *this;
     }
@@ -166,11 +166,11 @@ public:
 
         while (CHUNK_SIZE_BUF < (i + len))
         {
-            int l = CHUNK_SIZE_BUF - i;
-            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, l);
-            i += l;
-            len -= l;
-            n += l;
+            int len_part = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, len_part);
+            i += len_part;
+            len -= len_part;
+            n += len_part;
             int ret = send_chunk(i);
             if (ret < 0)
             {
@@ -197,11 +197,11 @@ public:
 
         while (CHUNK_SIZE_BUF < (i + len))
         {
-            int l = CHUNK_SIZE_BUF - i;
-            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.str() + n, l);
-            i += l;
-            len -= l;
-            n += l;
+            int len_part = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.str() + n, len_part);
+            i += len_part;
+            len -= len_part;
+            n += len_part;
             int ret = send_chunk(i);
             if (ret < 0)
             {
@@ -227,11 +227,11 @@ public:
         
         while (CHUNK_SIZE_BUF < (i + len))
         {
-            int l = CHUNK_SIZE_BUF - i;
-            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.c_str() + n, l);
-            i += l;
-            len -= l;
-            n += l;
+            int len_part = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s.c_str() + n, len_part);
+            i += len_part;
+            len -= len_part;
+            n += len_part;
             int ret = send_chunk(i);
             if (ret < 0)
             {
@@ -256,11 +256,11 @@ public:
         int n = 0;
         while (CHUNK_SIZE_BUF < (i + len))
         {
-            int l = CHUNK_SIZE_BUF - i;
-            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, l);
-            i += l;
-            len -= l;
-            n += l;
+            int len_part = CHUNK_SIZE_BUF - i;
+            memcpy(buf + MAX_LEN_SIZE_CHUNK + i, s + n, len_part);
+            i += len_part;
+            len -= len_part;
+            n += len_part;
             int ret = send_chunk(i);
             if (ret < 0)
                 return ret;

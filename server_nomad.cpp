@@ -1,4 +1,5 @@
 #include "main.h"
+#include <sstream>
 
 using namespace std;
 
@@ -148,7 +149,7 @@ int main_proc(const char* name_proc)
         if (!bSuccess)
         {
             DWORD err = GetLastError();
-            print_err("<%s:%d> Error CreateProcessA(): %s\n error=%lu\n", __func__, __LINE__, ss.str().c_str(), err);
+            print_err("<%s:%d> Error CreateProcessA(): %s\n error=%lu\n", __func__, __LINE__, ss.str(), err);
             exit(1);
         }
 

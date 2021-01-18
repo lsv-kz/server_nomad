@@ -14,16 +14,21 @@ private:
 public:
     size_t add(const char* name, const char* val)
     {
-        ostringstream ss;
+        unsigned int lenName, lenVal;
         if (name)
-            ss << name << '=';
+            lenName = strlen(name);
         else
             return 0;
 
         if (val)
-            ss << val;
+            lenVal = strlen(val);
+        else
+            lenVal = 0;
 
-        size_t len = ss.str().size();
+        String ss(lenName + lenVal + 2);
+        ss << name << '=' << val;
+
+        size_t len = ss.len();
         if ((i + len + 2) > sizeBufEnv)
         {
             int sizeTmp = sizeBufEnv + len + 128;
@@ -35,11 +40,11 @@ public:
             delete[] bufEnv;
             bufEnv = tmp;
         }
-        memcpy(bufEnv + i, ss.str().c_str(), len);
+        memcpy(bufEnv + i, ss.str(), len);
         i += len;
         bufEnv[i++] = '\0';
         bufEnv[i] = '\0';
-        return len + 2;
+        return len;
     }
     //------------------------------------------------------------------
     char* get() { return bufEnv; }
@@ -95,7 +100,6 @@ int cgi(Connect* req)
 
     wstring commandLine;
     CreateEnv env;
-    stringstream ss;
 
     wstring wPath;
 

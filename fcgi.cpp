@@ -80,8 +80,8 @@ class FCGI_params
 
 public:
     FCGI_params(SOCKET s = INVALID_SOCKET) { sock = s; }
-    template <typename Arg>
-    int add(const char* name, Arg val)
+
+    int add(const char* name, const char* val)
     {
         int ret = 0;
         if (!name)
@@ -89,9 +89,13 @@ public:
             ret = send_par(1);
             return ret;
         }
-        ostringstream ss;
-        ss << val;
-        size_t len_name = strlen(name), len_val = ss.str().size(), len;
+
+        size_t len_name = strlen(name), len_val, len;
+
+        if (val)
+            len_val = strlen(val);
+        else
+            len_val = 0;
 
         len = len_name + len_val;
         len += len_name > 127 ? 4 : 1;
@@ -128,8 +132,11 @@ public:
 
         memcpy((buf + i), name, len_name);
         i += len_name;
-        memcpy((buf + i), ss.str().c_str(), len_val);
-        i += len_val;
+        if (len_val > 0)
+        {
+            memcpy((buf + i), val, len_val);
+            i += len_val;
+        }
         return ret;
     }
 };
@@ -564,7 +571,7 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
 
     FCGI_params par(fcgi_sock);
 
-    if (par.add("SERVER_SOFTWARE", conf->ServerSoftware) < 0)
+    if (par.add("SERVER_SOFTWARE", conf->ServerSoftware.c_str()) < 0)
         goto err_param;
 
     if (par.add("GATEWAY_INTERFACE", "CGI/1.1") < 0)

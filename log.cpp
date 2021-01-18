@@ -1,4 +1,5 @@
 #include "main.h"
+#include <sstream>
 
 using namespace std;
 
@@ -77,12 +78,12 @@ void print_err(const char* format, ...)
     vsnprintf(buf, 256 * 2, format, ap);
     va_end(ap);
 
-    stringstream ss;
+    String ss(256);
     ss << "[" << get_time().str() << "] - " << buf;
 
     lock_guard<mutex> l(mtxLog);
     DWORD wrr;
-    BOOL res = WriteFile(hLogErr, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
+    BOOL res = WriteFile(hLogErr, ss.str(), (DWORD)ss.len(), &wrr, NULL);
     if (!res)
     {
         exit(1);
@@ -98,12 +99,12 @@ void print_err(Connect* req, const char* format, ...)
     vsnprintf(buf, 256 * 2, format, ap);
     va_end(ap);
 
-    stringstream ss;
+    String ss(512);
     ss << "[" << get_time().str() << "]-[" << req->numChld << "/" << req->numConn << "/" << req->numReq << "] " << buf;
 
     lock_guard<mutex> l(mtxLog);
     DWORD wrr;
-    BOOL res = WriteFile(hLogErr, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
+    BOOL res = WriteFile(hLogErr, ss.str(), (DWORD)ss.len(), &wrr, NULL);
     if (!res)
     {
         exit(1);
@@ -112,7 +113,7 @@ void print_err(Connect* req, const char* format, ...)
 //======================================================================
 void print_log(Connect* req)
 {
-    stringstream ss;
+    String ss(512);
 
     ss << req->numChld << "/" << req->numConn << "/" << req->numReq << " - " << req->remoteAddr // << ":" << req->remotePort
         << " - [" << req->resp.sLogTime.str() << "] - ";
@@ -128,7 +129,7 @@ void print_log(Connect* req)
         << "\"\n";
     lock_guard<mutex> l(mtxLog);
     DWORD wrr;
-    BOOL res = WriteFile(hLog, ss.str().c_str(), (DWORD)ss.str().size(), &wrr, NULL);
+    BOOL res = WriteFile(hLog, ss.str(), (DWORD)ss.len(), &wrr, NULL);
     if (!res)
     {
         exit(1);

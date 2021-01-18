@@ -1,7 +1,7 @@
 #ifndef CLASS_STRING_H_
 #define CLASS_STRING_H_
 #include <iostream>
-#include <cstring>
+//#include <cstring>
 
 //---------------------------------------------------------------------
 class BaseString
