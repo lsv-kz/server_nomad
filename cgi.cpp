@@ -405,7 +405,7 @@ errExit:
 int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
 {
     int n, ReadFromScript = 0;
-    char buf[512], * ptr_buf;
+    char buf[256], * start_ptr;
     bool broken_pipe = false;
     int chunk_mode;
     if (req->reqMethod == M_HEAD)
@@ -435,40 +435,42 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
     }
     buf[ReadFromScript] = 0;
     //-------------------create headers of response---------------------
-    ptr_buf = buf;
+    start_ptr = buf;
     for (; ; )
     {
-        int len;
-        char* p2, s[256];
+        int len = 0;
+        char  *end_ptr, *p, *str;
 
-        len = 0;
-        while (1)
+        str = end_ptr = start_ptr;
+        for (; ReadFromScript > 0; end_ptr++)
         {
-            if ((*ptr_buf == '\0') || (len >= 256))
-            {
-                print_err(req, "<%s:%d>*** Error ***\n", __func__, __LINE__);
-                return -1;
-            }
-
             ReadFromScript--;
-            if ((*ptr_buf) == '\n')
-            {
-                ptr_buf++;
+            if (*end_ptr == '\n')
                 break;
-            }
-            if (*(ptr_buf) != '\r')
-                s[len++] = *ptr_buf;
-            ptr_buf++;
+            else if (*end_ptr == '\r')
+                *end_ptr = 0;
+            else
+                len++;
         }
-        s[len] = '\0';
+
+        if (*end_ptr == '\n')
+            *end_ptr = 0;
+        else
+        {
+            print_err(req, "<%s:%d> Error\n", __func__, __LINE__);
+            return -1;
+        }
+
+        start_ptr = end_ptr + 1;
+
         if (len == 0)
             break;
-   //     print_err(req, "<%s:%d> %s\n", __func__, __LINE__, s);
-        if (!strlcmp_case(s, "Status", 6))
+   //     print_err(req, "<%s:%d> %s\n", __func__, __LINE__, str);
+        if (!strlcmp_case(str, "Status", 6))
         {
-            if ((p2 = (char*)memchr(s, ':', len)))
+            if ((p = (char*)memchr(str, ':', len)))
             {
-                req->resp.respStatus = strtol(++p2, NULL, 10);
+                req->resp.respStatus = strtol(++p, NULL, 10);
                 if (req->resp.respStatus == 0)
                     return -1;
                 if (req->resp.respStatus == RS204)
@@ -480,16 +482,16 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
             continue;
         }
 
-        if (!strlcmp_case(s, "Date", 4) || \
-            !strlcmp_case(s, "Server", 6) || \
-            !strlcmp_case(s, "Accept-Ranges", 13) || \
-            !strlcmp_case(s, "Content-Length", 14) || \
-            !strlcmp_case(s, "Connection", 10))
+        if (!strlcmp_case(str, "Date", 4) || \
+            !strlcmp_case(str, "Server", 6) || \
+            !strlcmp_case(str, "Accept-Ranges", 13) || \
+            !strlcmp_case(str, "Content-Length", 14) || \
+            !strlcmp_case(str, "Connection", 10))
         {
             continue;
         }
 
-        hdrs << s << "\r\n";
+        hdrs << str << "\r\n";
         if (hdrs.error())
         {
             print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
@@ -536,7 +538,7 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
     //------------------ send entity to client -------------------------
     if (ReadFromScript > 0)
     {
-        int n = chunk.add_arr(ptr_buf, ReadFromScript);
+        int n = chunk.add_arr(start_ptr, ReadFromScript);
         if (n < 0)
         {
             print_err(req, "<%s:%d> Error chunk.add_arr(): %d\n", __func__, __LINE__, n);
