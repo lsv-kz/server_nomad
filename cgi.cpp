@@ -119,8 +119,7 @@ int cgi(Connect* req)
         utf16_to_utf8(wPath, stmp);
         print_err(req, "<%s:%d> script (%s) not found: errno=%d\n", __func__,
             __LINE__, stmp.c_str(), errno);
-        retExit = -RS404;
-        goto errExit;
+        return -RS404;
     }
     //--------------------- set environment ----------------------------
      {
@@ -133,8 +132,7 @@ int cgi(Connect* req)
         else
         {
             print_err(req, "<%s:%d> Error getenv_s()\n", __func__, __LINE__);
-            retExit = -RS500;
-            goto errExit;
+            return -RS500;
         }
     }
   
@@ -148,8 +146,7 @@ int cgi(Connect* req)
         else
         {
             print_err(req, "<%s:%d> Error getenv_s()\n", __func__, __LINE__);
-            retExit = -RS500;
-            goto errExit;
+            return -RS500;
         }
     }
    
@@ -160,15 +157,13 @@ int cgi(Connect* req)
         else
         {
             //      print_err(req, "<%s:%d> 411 Length Required\n", __func__, __LINE__);
-            retExit = -RS411;
-            goto errExit;
+            return -RS411;
         }
 
         if (req->req_hdrs.reqContentLength > conf->ClientMaxBodySize)
         {
             req->connKeepAlive = 0;
-            retExit = -RS413;
-            goto errExit;
+            return -RS413;
         }
 
         if (req->req_hdrs.iReqContentType >= 0)
@@ -176,8 +171,7 @@ int cgi(Connect* req)
         else
         {
             print_err(req, "<%s:%d> Content-Type \?\n", __func__, __LINE__);
-            retExit = -RS400;
-            goto errExit;
+            return -RS400;
         }
     }
 
@@ -245,16 +239,14 @@ int cgi(Connect* req)
     else
     {
         print_err(req, "<%s:%d> Error CommandLine CreateProcess()\n", __func__, __LINE__);
-        retExit = -RS500;
-        goto errExit;
+        return -RS500;
     }
     //------------------------------------------------------------------
     Pipe.hEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
     if (Pipe.hEvent == NULL)
     {
         print_err(req, "<%s:%d> CreateEvent failed with %lu\n", __func__, __LINE__, GetLastError());
-        retExit = -RS500;
-        goto errExit;
+        return -RS500;
     }
     Pipe.oOverlap.hEvent = Pipe.hEvent;
     //------------------------------------------------------------------
@@ -275,24 +267,17 @@ int cgi(Connect* req)
     if (Pipe.parentPipe == INVALID_HANDLE_VALUE)
     {
         print_err(req, "<%s:%d> CreateNamedPipe failed, GLE=%lu\n", __func__, __LINE__, GetLastError());
-        retExit = -RS500;
-
         CloseHandle(Pipe.hEvent);
-
-        goto errExit;
+        return -RS500;
     }
 
     if (!SetHandleInformation(Pipe.parentPipe, HANDLE_FLAG_INHERIT, 0))
     {
         print_err(req, "<%s:%d> Error SetHandleInformation, GLE=%lu\n", __func__, __LINE__, GetLastError());
-        retExit = -RS500;
-
         CloseHandle(Pipe.hEvent);
-
         DisconnectNamedPipe(Pipe.parentPipe);
         CloseHandle(Pipe.parentPipe);
-
-        goto errExit;
+        return -RS500;
     }
     //------------------------------------------------------------------
     childPipe = CreateFileA(
@@ -306,14 +291,10 @@ int cgi(Connect* req)
     if (childPipe == INVALID_HANDLE_VALUE)
     {
         print_err(req, "<%s:%d> Error CreateFile, GLE=%lu\n", __func__, __LINE__, GetLastError());
-        retExit = -RS500;
-
         CloseHandle(Pipe.hEvent);
-
         DisconnectNamedPipe(Pipe.parentPipe);
         CloseHandle(Pipe.parentPipe);
-
-        goto errExit;
+        return -RS500;
     }
 
     ConnectNamedPipe(Pipe.parentPipe, &Pipe.oOverlap);
@@ -336,14 +317,10 @@ int cgi(Connect* req)
         utf16_to_utf8(commandLine, stmp);
         print_err(req, "<%s:%d> Error CreateProcessW(%s)\n", __func__, __LINE__, stmp.c_str());
         PrintError(__func__, __LINE__, "Error CreateProcessW()");
-        retExit = -RS500;
-
         CloseHandle(Pipe.hEvent);
-
         DisconnectNamedPipe(Pipe.parentPipe);
         CloseHandle(Pipe.parentPipe);
-
-        goto errExit;
+        return -RS500;
     }
     else
     {
@@ -359,14 +336,10 @@ int cgi(Connect* req)
             if (wr_bytes < 0)
             {
                 print_err(req, "%d<%s:%d> Error write_to_script()=%d\n", __func__, __LINE__, wr_bytes);
-                retExit = -RS500;
-
                 CloseHandle(Pipe.hEvent);
-
                 DisconnectNamedPipe(Pipe.parentPipe);
                 CloseHandle(Pipe.parentPipe);
-
-                goto errExit;
+                return -RS500;
             }
             req->req_hdrs.reqContentLength -= wr_bytes;
         }
@@ -377,14 +350,10 @@ int cgi(Connect* req)
             if (wr_bytes < 0)
             {
                 print_err(req, "<%s:%d> Error client_to_script()\n", __func__, __LINE__);
-                retExit = -RS500;
-
                 CloseHandle(Pipe.hEvent);
-
                 DisconnectNamedPipe(Pipe.parentPipe);
                 CloseHandle(Pipe.parentPipe);
-
-                goto errExit;
+                return -RS500;
             }
             else
                 req->req_hdrs.reqContentLength -= wr_bytes;
@@ -396,9 +365,6 @@ int cgi(Connect* req)
     DisconnectNamedPipe(Pipe.parentPipe);
     CloseHandle(Pipe.parentPipe);
     CloseHandle(Pipe.hEvent);
-    return retExit;
-errExit:
-    req->connKeepAlive = 0;
     return retExit;
 }
 //======================================================================
@@ -436,19 +402,19 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
     buf[ReadFromScript] = 0;
     //-------------------create headers of response---------------------
     start_ptr = buf;
-    for (; ; )
+    for (int line = 0; line < 10; ++line)
     {
         int len = 0;
-        char  *end_ptr, *p, *str;
+        char *end_ptr, *str, *p;
 
         str = end_ptr = start_ptr;
-        for (; ReadFromScript > 0; end_ptr++)
+        for ( ; ReadFromScript > 0; end_ptr++)
         {
             ReadFromScript--;
-            if (*end_ptr == '\n')
-                break;
-            else if (*end_ptr == '\r')
+            if (*end_ptr == '\r')
                 *end_ptr = 0;
+            else if (*end_ptr == '\n')
+                break;
             else
                 len++;
         }
@@ -466,18 +432,21 @@ int cgi_chunk(Connect* req, PIPENAMED* Pipe, int maxRd)
         if (len == 0)
             break;
    //     print_err(req, "<%s:%d> %s\n", __func__, __LINE__, str);
+        if (!(p = (char*)memchr(str, ':', len)))
+        {
+            print_err(req, "<%s:%d> Error: Line not header [%s]\n", __func__, __LINE__, str);
+            return -1;
+        }
+        
         if (!strlcmp_case(str, "Status", 6))
         {
-            if ((p = (char*)memchr(str, ':', len)))
+            req->resp.respStatus = atoi(p + 1);
+            if (req->resp.respStatus == 0)
+                return -1;
+            if (req->resp.respStatus == RS204)
             {
-                req->resp.respStatus = strtol(++p, NULL, 10);
-                if (req->resp.respStatus == 0)
-                    return -1;
-                if (req->resp.respStatus == RS204)
-                {
-                    send_message(req, NULL, NULL);
-                    return 0;
-                }
+                send_message(req, NULL, NULL);
+                return 0;
             }
             continue;
         }

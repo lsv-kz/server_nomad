@@ -482,9 +482,9 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
     String hdrs(256);
     for (; header.len > 0; )
     {
-        char* p2;
-        char line[1024];
-        ret = read_line_sock(fcgi_sock, line, sizeof(line) - 1, conf->TimeOutCGI);
+        char* p;
+        char str[1024];
+        ret = read_line_sock(fcgi_sock, str, sizeof(str) - 1, conf->TimeOutCGI);
         if (ret <= 0)
         {
             return -RS500;
@@ -492,52 +492,46 @@ int fcgi_read_headers(Connect* req, SOCKET fcgi_sock)
 
         header.len -= ret;
 
-        size_t i = strcspn(line, "\r\n");
+        size_t i = strcspn(str, "\r\n");
         if (i == 0)
         {
             break;
         }
 
-        line[i] = 0;
- //print_err("<%d> %s\n", __LINE__, line);
-        if ((p2 = strchr(line, ':')))
+        str[i] = 0;
+ //print_err("<%d> %s\n", __LINE__, str);
+        if ((p = strchr(str, ':')))
         {
-            if (!strlcmp_case(line, "Status", 6))
+            if (!strlcmp_case(str, "Status", 6))
             {
-                req->resp.respStatus = strtol(++p2, NULL, 10);
-                //	sscanf(++p2, "%d", &req->resp.respStatus); // ?
-         //       if(req->resp.respStatus == RS204)
+                req->resp.respStatus = atoi(p + 1);
+                if(req->resp.respStatus == RS204)
                 {
                     send_message(req, NULL, &hdrs);
                     return 0;
                 }
                 continue;
             }
-            else if (!strlcmp_case(line, "Date", 4) || \
-                !strlcmp_case(line, "Server", 6) || \
-                !strlcmp_case(line, "Accept-Ranges", 13) || \
-                !strlcmp_case(line, "Content-Length", 14) || \
-                !strlcmp_case(line, "Connection", 10))
+            else if (!strlcmp_case(str, "Date", 4) || \
+                !strlcmp_case(str, "Server", 6) || \
+                !strlcmp_case(str, "Accept-Ranges", 13) || \
+                !strlcmp_case(str, "Content-Length", 14) || \
+                !strlcmp_case(str, "Connection", 10))
             {
-                print_err(req, "<%s:%d> %s\n", __func__, __LINE__, line);
+                print_err(req, "<%s:%d> %s\n", __func__, __LINE__, str);
                 continue;
             }
 
-            hdrs << line << "\r\n";
+            hdrs << str << "\r\n";
             if (hdrs.error())
             {
                 print_err(req, "<%s:%d> Error create_header()\n", __func__, __LINE__);
                 return -RS500;
             }
-            /*
-            if (strlcmp_case(line, "Content-Type", 12))
-            {
-                print_err(req, "<%s:%d> %s\n", __func__, __LINE__, line);
-            }*/
         }
         else
         {
-            print_err(req, "<%s:%d> Error: %s\n", __func__, __LINE__, line);
+            print_err(req, "<%s:%d> Error: Line not header [%s]\n", __func__, __LINE__, str);
             return -RS500;
         }
     }

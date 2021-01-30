@@ -122,7 +122,7 @@ void get_request(RequestManager* ReqMan)
             req->resp.respStatus = -req->err;
             send_message(req, "", NULL);
 
-            if ((req->reqMethod == M_POST) || (req->reqMethod == M_PUT))
+            if (req->reqMethod == M_POST)
                 req->connKeepAlive = 0;
         }
 
