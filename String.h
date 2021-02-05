@@ -283,7 +283,7 @@ public:
 
         *(ptr + lenBuf) = 0;
 
-        for (; (ptr[p_] == ' ') || (ptr[p_] == '\r') || (ptr[p_] == '\n'); ++p_);
+        for (; (ptr[p_] == ' ') || (ptr[p_] == '\t') || (ptr[p_] == '\r') || (ptr[p_] == '\n'); ++p_);
 
         char* p1 = (char*)memchr(ptr + p_, ' ', lenBuf - p_);
         char* p2 = (char*)memchr(ptr + p_, '\r', lenBuf - p_);

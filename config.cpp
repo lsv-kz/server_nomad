@@ -28,12 +28,28 @@ int check_path(wstring& path)
     return 0;
 }
 //======================================================================
+fcgi_list_addr* create_fcgi_list()
+{
+    fcgi_list_addr* tmp;
+    tmp = new(nothrow) fcgi_list_addr;
+    if (!tmp)
+    {
+        fprintf(stderr, "<%s:%d> Error malloc()\n", __func__, __LINE__);
+        exit(1);
+    }
+
+    tmp->next = NULL;
+
+    return tmp;
+}
+//======================================================================
 int read_conf_file(const char* path_conf)
 {
     String s, ss, nameFile;
     char buf[512];
     nameFile << path_conf;
     nameFile << "/server.conf";
+    fcgi_list_addr* prev = NULL;
 
     ifstream fconf(nameFile.str(), ios::binary);
     if (!fconf.is_open())
@@ -126,15 +142,99 @@ int read_conf_file(const char* path_conf)
             ss >> c.ShowMediaFiles;
         else if (s == "ClientMaxBodySize")
             ss >> c.ClientMaxBodySize;
-        else if (s == "index.html")
-            ss >> c.index_html;
-        else if (s == "index.php")
-            ss >> c.index_php;
-        else if (s == "index.pl")
-            ss >> c.index_pl;
+        else if (s == "index")
+        {
+            while (!fconf.eof())
+            {
+                ss.clear();
+                fconf.getline(buf, sizeof(buf));
+                ss << buf;
+                ss >> s;
+
+                if ((s[0] == '#') || (s[0] == '{'))
+                    continue;
+                else if (s[0] == '}')
+                    break;
+               
+                if (s == "index.html")
+                    c.index_html = 'y';
+                else if (s == "index.php")
+                    c.index_php = 'y';
+                else if (s == "index.pl")
+                    c.index_pl = 'y';
+                else if (s == "index.fcgi")
+                    c.index_fcgi = 'y';
+            }
+
+            if (s[0] != '}')
+            {
+                cerr << "   Error read config file\n";
+                cin.get();
+                exit(1);
+            }
+        }
+        
+        else if (s == "fastcgi")
+        {
+            while (!fconf.eof())
+            {
+                ss.clear();
+                fconf.getline(buf, sizeof(buf));
+                ss << buf;
+                ss >> s;
+                if ((s[0] == '#') || (s[0] == '{'))
+                    continue;
+                else if (s[0] == '}')
+                    break;
+
+                if (!prev)
+                {
+                    prev = c.fcgi_list = create_fcgi_list();
+                    wstring stmp;
+                    utf8_to_utf16(s.str(), stmp);
+                    c.fcgi_list->scrpt_name = stmp;
+
+                    ss >> s;
+                    utf8_to_utf16(s.str(), stmp);
+                    c.fcgi_list->addr = stmp;
+                }
+                else
+                {
+                    fcgi_list_addr* tmp;
+                    tmp = create_fcgi_list();
+                    wstring stmp;
+                    utf8_to_utf16(s.str(), stmp);
+                    tmp->scrpt_name = stmp;
+
+                    ss >> s;
+                    utf8_to_utf16(s.str(), stmp);
+                    tmp->addr = stmp;
+                    prev->next = tmp;
+                    prev = tmp;
+                }
+            }
+            if (s[0] != '}')
+            {
+                cerr << "   Error read config file\n";
+                cin.get();
+                exit(1);
+            }
+        }
     }
 
     fconf.close();
+
+    fcgi_list_addr* i = c.fcgi_list;
+    for (; i; i = i->next)
+    {
+        wcerr << L"[" << i->scrpt_name.c_str() << L"] = [" << i->addr.c_str() << L"]\n";
+    }
+
+    i = c.fcgi_list;
+    for (; i; i = i->next)
+    {
+        wcerr << L"[" << i->scrpt_name.c_str() << L"] = [" << i->addr.c_str() << L"]\n";
+    }
     //-------------------------log_dir--------------------------------------
     if (check_path(c.wLogDir) == -1)
     {

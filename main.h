@@ -52,7 +52,7 @@ enum {
     RS500 = 500, RS501, RS502, RS503, RS504, RS505
 };
 
-enum { cgi_ex = 1, php_cgi, php_fpm };
+enum { cgi_ex = 1, php_cgi, php_fpm, fast_cgi };
 
 enum {
     M_GET = 1, M_HEAD, M_POST, M_OPTIONS, M_PUT,
@@ -64,6 +64,12 @@ enum { HTTP09 = 1, HTTP10, HTTP11, HTTP2 };
 enum {
     EXIT_THR = 1,
 };
+
+typedef struct fcgi_list_addr {
+    std::wstring scrpt_name;
+    std::wstring addr;
+    struct fcgi_list_addr* next;
+} fcgi_list_addr;
 
 void print_err(const char* format, ...);
 //----------------------------------------------------------------------
@@ -109,11 +115,14 @@ struct Config
     std::wstring wPathPHP_CGI = L"";
     std::string pathPHP_FPM = "";
 
+    fcgi_list_addr* fcgi_list = NULL;
+
     long int ClientMaxBodySize = 1000000;
 
     char index_html = 'n';
     char index_php = 'n';
     char index_pl = 'n';
+    char index_fcgi = 'n';
 
     char ShowMediaFiles = 'n';
 };

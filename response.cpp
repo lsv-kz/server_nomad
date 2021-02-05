@@ -16,8 +16,32 @@ long long file_size(const wchar_t* s)
         return -1;
 }
 //======================================================================
+int fastcgi(Connect* req, const wchar_t* wPath)
+{
+    fcgi_list_addr* i = conf->fcgi_list;
+    for (; i; i = i->next)
+    {
+        if (i->scrpt_name == wPath)
+            break;
+    }
+
+    if (!i)
+        return -RS404;
+    req->resp.scriptType = fast_cgi;
+    req->wScriptName = wPath;
+    int ret = fcgi(req);
+    req->wScriptName = NULL;
+    return ret;
+}
+//======================================================================
 int response(RequestManager* ReqMan, Connect* req)
 {
+    fcgi_list_addr* i = conf->fcgi_list;
+    for (; i; i = i->next)
+    {
+        wcerr << L"[" << i->scrpt_name.c_str() << L"] = [" << i->addr.c_str() << L"]\n";
+    }
+
     if ((strstr(req->decodeUri, ".php")))
     {
         int ret;
@@ -75,10 +99,17 @@ int response(RequestManager* ReqMan, Connect* req)
     struct _stati64 st64;
     if (_wstati64(wPath.c_str(), &st64) == -1)
     {
-        string sTmp;
-        utf16_to_utf8(wPath, sTmp);
-        print_err(req, "<%s:%d> Error _wstati64(%s): %d\n", __func__, __LINE__, sTmp.c_str(), errno);
-        return -RS404;
+        int ret = -RS404;
+        const wchar_t* p = wcsrchr(req->wDecodeUri.c_str(), '/');
+        if (p)
+            ret = fastcgi(req, p);
+        if (ret < 0)
+        {
+            string sTmp;
+            utf16_to_utf8(wPath, sTmp);
+            print_err(req, "<%s:%d> Error not found (%d) [%s]\n", __func__, __LINE__, ret, sTmp.c_str());
+        }
+        return ret;
     }
     else
     {
@@ -167,12 +198,20 @@ int response(RequestManager* ReqMan, Connect* req)
             if (conf->index_pl == 'y')
             {
                 req->resp.scriptType = cgi_ex;
-                wstring s = L"/cgi-bin/index.pl";
-                req->wScriptName = s.c_str();
+                req->wScriptName = L"/cgi-bin/index.pl";
 
                 int ret = cgi(req);
                 req->wScriptName = NULL;
                 return ret;
+            }
+            else if (conf->index_fcgi == 'y')
+            {
+                req->resp.scriptType = fast_cgi;
+                req->wScriptName = L"/index.fcgi";
+                int ret = fcgi(req);
+                req->wScriptName = NULL;
+                if (ret == 0)
+                    return ret;
             }
 
             return index_dir(ReqMan, req, wPath);

@@ -24,15 +24,15 @@ int wait_read(SOCKET sock, int timeout)
     else if (!ret)
         return -RS408;
 
-    if (readfds.revents & POLLERR)
+    if (readfds.revents & POLLIN)
+        return 1;
+    else if (readfds.revents & POLLHUP)
+        return 0;
+    else if (readfds.revents & POLLERR)
     {
         print_err("<%s:%d> POLLERR fdrd.revents = 0x%02x\n", __func__, __LINE__, readfds.revents);
         return -1;
     }
-    else if (readfds.revents & POLLIN)
-        return 1;
-    else if (readfds.revents & POLLHUP)
-        return 0;
 
     print_err("<%s:%d> Error .revents = 0x%02x\n", __func__, __LINE__, readfds.revents);
     return -1;

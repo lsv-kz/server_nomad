@@ -222,6 +222,50 @@ int fcgi_to_stderr(SOCKET fcgi_sock, int cont_len, int timeout)
     return wr_bytes;
 }
 //======================================================================
+int get_sock_fcgi(Connect* req, const wchar_t* script)
+{
+    int fcgi_sock = -1, len;
+    fcgi_list_addr* ps = conf->fcgi_list;
+
+    if (!script)
+    {
+        print_err(req, "<%s:%d> Not found\n", __func__, __LINE__);
+        return -RS404;
+    }
+
+    len = wcslen(script);
+    if (len > 64)
+    {
+        print_err(req, "<%s:%d> Error len name script\n", __func__, __LINE__);
+        return -RS400;
+    }
+
+    for (; ps; ps = ps->next)
+    {
+        if (!wcscmp(script, ps->scrpt_name.c_str()))
+            break;
+    }
+
+    if (ps != NULL)
+    {
+        string str;
+        utf16_to_utf8(ps->addr, str);
+        fcgi_sock = create_fcgi_socket(str.c_str());
+        if (fcgi_sock < 0)
+        {
+            print_err(req, "<%s:%d> Error create_client_socket()\n", __func__, __LINE__);
+            fcgi_sock = -RS500;
+        }
+    }
+    else
+    {
+        print_err(req, "<%s:%d> Not found\n", __func__, __LINE__);
+        fcgi_sock = -RS404;
+    }
+
+    return fcgi_sock;
+}
+//======================================================================
 void fcgi_set_header(char* header, int type, int id, size_t len, int padding_len)
 {
     char* p = header;
@@ -701,6 +745,14 @@ int fcgi(Connect* req)
     if (req->resp.scriptType == php_fpm)
     {
         fcgi_sock = create_fcgi_socket(conf->pathPHP_FPM.c_str());
+    }
+    else if (req->resp.scriptType == fast_cgi)
+    {
+        const wchar_t* p = wcsrchr(req->wScriptName, '/');
+        if (p)
+            fcgi_sock = get_sock_fcgi(req, p);
+        else
+            fcgi_sock = -1;
     }
     else
     {
