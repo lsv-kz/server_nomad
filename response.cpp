@@ -18,17 +18,27 @@ long long file_size(const wchar_t* s)
 //======================================================================
 int fastcgi(Connect* req, const wchar_t* wPath)
 {
+    const wchar_t* p = wcsrchr(wPath, '/');
+    if (!p) return -RS404;
     fcgi_list_addr* i = conf->fcgi_list;
     for (; i; i = i->next)
     {
-        if (i->scrpt_name == wPath)
-            break;
+        if (i->scrpt_name[0] == L'~')
+        {
+            if (!wcscmp(p, i->scrpt_name.c_str() + 1))
+                break;
+        }
+        else
+        {
+            if (i->scrpt_name == wPath)
+                break;
+        }
     }
 
     if (!i)
         return -RS404;
     req->resp.scriptType = fast_cgi;
-    req->wScriptName = wPath;
+    req->wScriptName = i->scrpt_name.c_str();
     int ret = fcgi(req);
     req->wScriptName = NULL;
     return ret;
@@ -99,14 +109,11 @@ int response(RequestManager* ReqMan, Connect* req)
     struct _stati64 st64;
     if (_wstati64(wPath.c_str(), &st64) == -1)
     {
-        int ret = -RS404;
-        const wchar_t* p = wcsrchr(req->wDecodeUri.c_str(), '/');
-        if (p)
-            ret = fastcgi(req, p);
+        int ret = fastcgi(req, req->wDecodeUri.c_str());
         if (ret < 0)
         {
             string sTmp;
-            utf16_to_utf8(wPath, sTmp);
+            utf16_to_utf8(req->wDecodeUri, sTmp);
             print_err(req, "<%s:%d> Error not found (%d) [%s]\n", __func__, __LINE__, ret, sTmp.c_str());
         }
         return ret;

@@ -151,7 +151,7 @@ int read_conf_file(const char* path_conf)
                 ss << buf;
                 ss >> s;
 
-                if ((s[0] == '#') || (s[0] == '{'))
+                if ((s[0] == '#') || (s.len() == 0) || (s[0] == '{'))
                     continue;
                 else if (s[0] == '}')
                     break;
@@ -182,7 +182,7 @@ int read_conf_file(const char* path_conf)
                 fconf.getline(buf, sizeof(buf));
                 ss << buf;
                 ss >> s;
-                if ((s[0] == '#') || (s[0] == '{'))
+                if ((s[0] == '#') || (s.len() == 0) || (s[0] == '{'))
                     continue;
                 else if (s[0] == '}')
                     break;
@@ -225,12 +225,6 @@ int read_conf_file(const char* path_conf)
     fconf.close();
 
     fcgi_list_addr* i = c.fcgi_list;
-    for (; i; i = i->next)
-    {
-        wcerr << L"[" << i->scrpt_name.c_str() << L"] = [" << i->addr.c_str() << L"]\n";
-    }
-
-    i = c.fcgi_list;
     for (; i; i = i->next)
     {
         wcerr << L"[" << i->scrpt_name.c_str() << L"] = [" << i->addr.c_str() << L"]\n";

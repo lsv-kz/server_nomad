@@ -625,16 +625,14 @@ int fcgi_send_param(Connect* req, SOCKET fcgi_sock)
     if (par.add("REMOTE_PORT", req->remotePort) < 0)
         goto err_param;
  
-    utf16_to_utf8(req->wDecodeUri, str);
-    if (par.add("REQUEST_URI", str.c_str()) < 0)
+    if (par.add("REQUEST_URI", req->uri) < 0)
         goto err_param;
 
+    if (par.add("SCRIPT_NAME", req->decodeUri) < 0)
+        goto err_param;
+    
     if (req->resp.scriptType == php_fpm)
     {
-        utf16_to_utf8(req->wDecodeUri, str);
-        if (par.add("SCRIPT_NAME", str.c_str()) < 0)
-            goto err_param;
-
         wstring wPath = conf->wRootDir;
         wPath += req->wScriptName;
         utf16_to_utf8(wPath, str);
@@ -748,11 +746,7 @@ int fcgi(Connect* req)
     }
     else if (req->resp.scriptType == fast_cgi)
     {
-        const wchar_t* p = wcsrchr(req->wScriptName, '/');
-        if (p)
-            fcgi_sock = get_sock_fcgi(req, p);
-        else
-            fcgi_sock = -1;
+        fcgi_sock = get_sock_fcgi(req, req->wScriptName);
     }
     else
     {
