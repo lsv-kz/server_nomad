@@ -43,13 +43,27 @@ fcgi_list_addr* create_fcgi_list()
     return tmp;
 }
 //======================================================================
+int getLine(ifstream& fi, String& s)
+{
+    int n = 0;
+    char c;
+    s.clear();
+    while (fi.get(c))
+    {
+        if (c == '\n') break;
+        s << c;
+        ++n;
+    }
+
+    return n;
+}
+//======================================================================
 int read_conf_file(const char* path_conf)
 {
     String s, ss, nameFile;
-    char buf[512];
     nameFile << path_conf;
     nameFile << "/server.conf";
-    fcgi_list_addr* prev = NULL;
+    fcgi_list_addr* end = NULL;
 
     ifstream fconf(nameFile.str(), ios::binary);
     if (!fconf.is_open())
@@ -61,13 +75,12 @@ int read_conf_file(const char* path_conf)
 
     while (!fconf.eof())
     {
-        ss.clear();
-        fconf.getline(buf, sizeof(buf));
-        ss << buf;
+        getLine(fconf, ss);
         ss >> s;
+
         if (s[0] == '#')
             continue;
-//  cout << (ss.str()+ss.get_p()) << "\n";
+
         if (s == "ServerAddr")
             ss >> c.host;
         else if (s == "Port")
@@ -144,11 +157,18 @@ int read_conf_file(const char* path_conf)
             ss >> c.ClientMaxBodySize;
         else if (s == "index")
         {
+            ss >> s;
+            if (s != "{")
+            {
+                getLine(fconf, ss);
+                ss >> s;
+                if (s != "{")
+                    continue;
+            }
+
             while (!fconf.eof())
             {
-                ss.clear();
-                fconf.getline(buf, sizeof(buf));
-                ss << buf;
+                getLine(fconf, ss);
                 ss >> s;
 
                 if ((s[0] == '#') || (s.len() == 0) || (s[0] == '{'))
@@ -173,23 +193,31 @@ int read_conf_file(const char* path_conf)
                 exit(1);
             }
         }
-        
         else if (s == "fastcgi")
         {
+            ss >> s;
+            if (s != "{")
+            {
+                getLine(fconf, ss);
+                ss >> s;
+                    if (s != "{")
+                continue;
+            }
+
             while (!fconf.eof())
             {
                 ss.clear();
-                fconf.getline(buf, sizeof(buf));
-                ss << buf;
+                getLine(fconf, ss);
                 ss >> s;
+
                 if ((s[0] == '#') || (s.len() == 0) || (s[0] == '{'))
                     continue;
                 else if (s[0] == '}')
                     break;
 
-                if (!prev)
+                if (!end)
                 {
-                    prev = c.fcgi_list = create_fcgi_list();
+                    end = c.fcgi_list = create_fcgi_list();
                     wstring stmp;
                     utf8_to_utf16(s.str(), stmp);
                     c.fcgi_list->scrpt_name = stmp;
@@ -200,17 +228,15 @@ int read_conf_file(const char* path_conf)
                 }
                 else
                 {
-                    fcgi_list_addr* tmp;
-                    tmp = create_fcgi_list();
                     wstring stmp;
                     utf8_to_utf16(s.str(), stmp);
-                    tmp->scrpt_name = stmp;
+                    end->next = create_fcgi_list();
+                    end->next->scrpt_name = stmp;
 
                     ss >> s;
                     utf8_to_utf16(s.str(), stmp);
-                    tmp->addr = stmp;
-                    prev->next = tmp;
-                    prev = tmp;
+                    end->next->addr = stmp;
+                    end = end->next;
                 }
             }
             if (s[0] != '}')
@@ -227,7 +253,7 @@ int read_conf_file(const char* path_conf)
     fcgi_list_addr* i = c.fcgi_list;
     for (; i; i = i->next)
     {
-        wcerr << L"[" << i->scrpt_name.c_str() << L"] = [" << i->addr.c_str() << L"]\n";
+        wcerr << L"   [" << i->scrpt_name.c_str() << L"] = [" << i->addr.c_str() << L"]\n";
     }
     //-------------------------log_dir--------------------------------------
     if (check_path(c.wLogDir) == -1)
