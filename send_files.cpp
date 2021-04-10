@@ -11,8 +11,6 @@ static Connect* list_end = NULL;
 static Connect* list_new_start = NULL;
 static Connect* list_new_end = NULL;
 
-static int max_resp = 0;
-
 static PWSAPOLLFD fdwr;
 
 static mutex mtx_send;
@@ -121,7 +119,7 @@ int set_list(RequestManager * ReqMan)
             ++i;
         }
 
-        if (i >= max_resp)
+        if (i >= conf->MaxRequests)
             break;
     }
 
@@ -136,9 +134,7 @@ void send_files(RequestManager * ReqMan)
     char* rd_buf;
     int num_chld = ReqMan->get_num_chld();
 
-    max_resp = conf->MaxRequests;
-
-    fdwr = new(nothrow) WSAPOLLFD [max_resp];
+    fdwr = new(nothrow) WSAPOLLFD [conf->MaxRequests];
     rd_buf = new(nothrow) char[size_buf];
     if (!rd_buf || !fdwr)
     {
@@ -146,7 +142,7 @@ void send_files(RequestManager * ReqMan)
         exit(1);
     }
 
-    memset(fdwr, 0, sizeof(struct pollfd) * max_resp);
+    memset(fdwr, 0, sizeof(WSAPOLLFD) * conf->MaxRequests);
 
     i = 0;
     while (1)
@@ -226,10 +222,9 @@ void send_files(RequestManager * ReqMan)
 void push_resp_queue(Connect* req)
 {
     _lseeki64(req->resp.fd, req->resp.offset, SEEK_SET);
-    mtx_send.lock();
     req->time_write = 0;
-
     req->next = NULL;
+ mtx_send.lock();
     req->prev = list_new_end;
     if (list_new_start)
     {
@@ -239,7 +234,7 @@ void push_resp_queue(Connect* req)
     else
         list_new_start = list_new_end = req;
 
-    mtx_send.unlock();
+ mtx_send.unlock();
     cond_add.notify_one();
 }
 //======================================================================
