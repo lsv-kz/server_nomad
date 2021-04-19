@@ -43,7 +43,7 @@ SOCKET create_server_socket(const Config * conf)
     //	sin.sin_addr.s_addr = INADDR_ANY;
     if (in4_aton(conf->host.c_str(), &(sin.sin_addr)) != 4)
     {
-        print_err("<%s:%d> Error in4_aton()=%d\n", __func__, __LINE__);
+        print_err("<%s:%d> Error in4_aton()\n", __func__, __LINE__);
         return INVALID_SOCKET;
     }
     sin.sin_port = htons(port);
