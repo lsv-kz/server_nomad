@@ -219,7 +219,7 @@ void send_files(RequestManager * ReqMan)
     delete[] fdwr;
 }
 //======================================================================
-void push_resp_queue(Connect* req)
+void push_send_list(Connect* req)
 {
     _lseeki64(req->resp.fd, req->resp.offset, SEEK_SET);
     req->time_write = 0;
@@ -238,7 +238,7 @@ void push_resp_queue(Connect* req)
     cond_add.notify_one();
 }
 //======================================================================
-void close_queue(void)
+void close_send_list(void)
 {
     close_thr = 1;
     cond_add.notify_one();

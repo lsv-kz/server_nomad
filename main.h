@@ -332,7 +332,7 @@ void print_log(Connect* req);
 HANDLE GetHandleLogErr();
 //----------------------------------------------------------------------
 void send_files(RequestManager* ReqMan);
-void push_resp_queue(Connect* r);
-void close_queue(void);
+void push_send_list(Connect* r);
+void close_send_list(void);
 
 #endif

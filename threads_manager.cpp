@@ -375,7 +375,7 @@ void child_proc(SOCKET sockServer, int numChld, HANDLE hExit_out)
     }
 
     
-    close_queue();
+    close_send_list();
     SendFile.join();
 
     unsigned char ch = (unsigned char)numChld;

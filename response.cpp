@@ -313,7 +313,7 @@ int response(RequestManager* ReqMan, Connect* req)
         return 0;
     }
 
-    push_resp_queue(req);
+    push_send_list(req);
     return 1;
 }
 //======================================================================
